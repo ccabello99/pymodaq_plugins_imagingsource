@@ -29,8 +29,8 @@ class ImagingSourceCamera:
 
     def __init__(self, info: str, callback: Optional[Callable] = None, **kwargs):
         super().__init__(**kwargs)
-        # create camera object
 
+        # create camera object
         self.camera = ic4.Grabber()
         self.model_name = info.model_name
         self.device_info = info

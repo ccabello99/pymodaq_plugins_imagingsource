@@ -1,5 +1,6 @@
 import numpy as np
 import imagingcontrol4 as ic4
+import time
 
 import warnings
 import numpy as np
@@ -255,43 +256,18 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
 
     def grab_data(self, Naverage: int = 1, live: bool = False, **kwargs) -> None:
         try:
+            self._prepare_view()
             if live:
-                self._prepare_view()
                 self.controller.start_grabbing(frame_rate=self.settings.param('AcquisitionFrameRate').value())
             else:
-                self._prepare_view()
                 if not self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_start()
                 while not self.controller.listener.frame_ready:
-                    QtCore.QThread.msleep(10)
-                self.emit_data()
+                    pass # do nothing until frame is available
                 if self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_stop()
         except Exception as e:
             self.emit_status(ThreadCommand('Update_Status', [str(e), "log"]))
-
-            
-    def emit_data(self):
-        try:
-            # Get data from buffer
-            buffer = self.controller.sink.try_pop_output_buffer()
-            if buffer is not None:
-                frame = buffer.numpy_copy()
-                buffer.release()
-                # Emit the frame.
-                self.dte_signal.emit(
-                    DataToExport(f'{self.user_id}', data=[DataFromPlugins(
-                        name=f'{self.user_id}',
-                        data=[np.squeeze(frame)],
-                        dim=self.data_shape,
-                        labels=[f'{self.user_id}_{self.data_shape}'],
-                        axes=self.axes)]))
-                self.controller.listener.frame_ready = False
-
-            QtWidgets.QApplication.processEvents()
-
-        except Exception as e:
-            self.emit_status(ThreadCommand('Update_Status', [str(e), 'log']))
 
     def emit_data_callback(self, frame) -> None:
         self.dte_signal.emit(
@@ -463,4 +439,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                     pass
 
 if __name__ == '__main__':
-    main(__file__, init=False)
+    try:
+        main(__file__, init=False)
+    finally:
+        ic4.Library.exit()

@@ -106,7 +106,13 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
 
         # Update the UI with available and current camera parameters
+        self.add_attributes_to_settings()
         self.update_params_ui()
+        for param in self.settings.children():
+            param.sigValueChanged.emit(param, param.value())
+            if param.hasChildren():
+                for child in param.children():
+                    child.sigValueChanged.emit(child, child.value())
 
         # Ensure correct pixel format limits
         misc_group = next(attr for attr in self.controller.attributes if attr['name'] == 'misc')
@@ -308,10 +314,8 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         camera_list = [device.model_name for device in devices]
         self.settings.param('camera_list').setLimits(camera_list)
         return devices, camera_list
-    
-    def update_params_ui(self):
-        device_map = self.controller.camera.device_property_map
 
+    def add_attributes_to_settings(self):
         existing_group_names = {child.name() for child in self.settings.children()}
 
         for attr in self.controller.attributes:
@@ -337,6 +341,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             else:
                 if attr_name not in existing_group_names:
                     self.settings.addChild(attr)
+    
+    def update_params_ui(self):
+        device_map = self.controller.camera.device_property_map
 
         # Common syntax for any camera model
         self.settings.child('device_info','DeviceModelName').setValue(self.controller.model_name)

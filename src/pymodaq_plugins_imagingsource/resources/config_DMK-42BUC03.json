@@ -37,7 +37,8 @@
         "name": "trigger", 
         "type": "group",
         "children": {
-            "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false}
+            "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false},
+            "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false}
         }
     },
 

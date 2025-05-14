@@ -1,6 +1,9 @@
 import numpy as np
 import imagingcontrol4 as ic4
 import time
+from datetime import datetime
+import os
+from pathlib import Path
 
 import warnings
 import numpy as np
@@ -11,7 +14,8 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
 import pythoncom
 pythoncom.CoInitialize()
 
-
+from pymodaq_data.h5modules.saving import H5SaverLowLevel
+from pymodaq_data.h5modules.data_saving import DataToExportSaver
 from pymodaq.utils.daq_utils import ThreadCommand
 from pymodaq_plugins_imagingsource.hardware.imagingsource import ImagingSourceCamera
 from pymodaq.utils.parameter import Parameter
@@ -65,6 +69,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         self.y_axis = None
         self.axes = None
         self.data_shape = None
+        self.save_frame = False
 
     def init_controller(self) -> ImagingSourceCamera:
 
@@ -102,6 +107,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         # Register device list changed callback
         self.device_list_token = self.device_enum.event_add_device_list_changed(self.get_camera_list)
 
+        # Register device lost event handler
+        self.device_lost_token = self.controller.camera.event_add_device_lost(self.camera_lost)
+
         # Initialize pixel format before starting stream to avoid default RGB types
         self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
 
@@ -125,6 +133,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         self._prepare_view()
         info = "Initialized camera"
         print(f"{self.user_id} camera initialized successfully")
+        self.emit_status(ThreadCommand('Update_Status', [f"{self.user_id} camera initialized successfully"]))
         initialized = True
         return info, initialized
     
@@ -169,8 +178,23 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 self.controller.camera.device_property_map.set_value(name, value)
                 self.controller.setup_acquisition()
                 print(f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !")
+                self.emit_status(ThreadCommand('Update_Status', [f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !"]))
                 self._prepare_view()
                 return
+            if name == 'TriggerSave':
+                if value:
+                    if not self.controller.camera.device_property_map.get_value_bool('TriggerMode'):
+                        print("Turn on Trigger Mode first !!")
+                        self.emit_status(ThreadCommand('Update_Status', ["Turn on Trigger Mode first !!"]))
+                        param.setValue(False)
+                        param.sigValueChanged.emit(param, False)
+                        return
+                    else:
+                        self.save_frame = True
+                        return
+                else:
+                    self.save_frame = False
+                    return
 
             # All the rest, just do :
             self.controller.camera.device_property_map.set_value(name, value)
@@ -193,6 +217,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 new_roi = (new_x, new_width, xbin, new_y, new_height, ybin)
                 self.update_rois(new_roi)
                 param.setValue(False)
+                param.sigValueChanged.emit(param, False)
         elif name == 'binning':
             # We handle ROI and binning separately for clarity
             (x0, w, y0, h, *_) = self.controller.get_roi()  # Get current ROI
@@ -208,6 +233,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 new_roi = (0, wdet, 1, 0, hdet, 1)
                 self.update_rois(new_roi)
                 param.setValue(False)
+                param.sigValueChanged.emit(param, False)
 
     
     def _prepare_view(self):
@@ -274,13 +300,21 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             self.emit_status(ThreadCommand('Update_Status', [str(e), "log"]))
 
     def emit_data_callback(self, frame) -> None:
-        self.dte_signal.emit(
-            DataToExport(f'{self.user_id}', data=[DataFromPlugins(
+        if self.save_frame:
+            dte = DataToExport(f'{self.user_id}', data=[DataFromPlugins(
                 name=f'{self.user_id}',
                 data=[np.squeeze(frame)],
                 dim=self.data_shape,
                 labels=[f'{self.user_id}_{self.data_shape}'],
-                axes=self.axes)]))
+                axes=self.axes)])
+        else:
+            dte = DataToExport(f'{self.user_id}', data=[DataFromPlugins(
+                name=f'{self.user_id}',
+                data=[np.squeeze(frame)],
+                dim=self.data_shape,
+                labels=[f'{self.user_id}_{self.data_shape}'],
+                axes=self.axes)], do_save=True)
+        self.dte_signal.emit(dte)
         self.controller.listener.frame_ready = False
 
     def stop(self):
@@ -290,14 +324,19 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
     def close(self):
         """Terminate the communication protocol"""
         self.controller.attributes = None
-        self.controller.close()
-        self.device_enum.event_remove_device_list_changed(self.device_list_token)
+        try:
+            self.device_enum.event_remove_device_list_changed(self.device_list_token)
+            self.controller.camera.event_remove_device_lost(self.device_lost_token)
+            self.controller.close()
+        except ic4.IC4Exception:
+            pass
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False
         self.status.controller = None
         self.status.info = ""
-        print(f"{self.user_id} communication terminated successfully")   
+        print(f"{self.user_id} communication terminated successfully")
+        self.emit_status(ThreadCommand('Update_Status', [f"{self.user_id} communication terminated successfully"]))
     
     def roi_select(self, roi_info, ind_viewer):
         self.roi_info = roi_info
@@ -312,6 +351,11 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         camera_list = [device.model_name for device in devices]
         self.settings.param('camera_list').setLimits(camera_list)
         return devices, camera_list
+    
+    def camera_lost(self, grabber):
+        self.close()
+        print(f"Lost connection to {self.user_id}")
+        self.emit_status(ThreadCommand('Update_Status', [f"Lost connection to {self.user_id}"]))
 
     def add_attributes_to_settings(self):
         existing_group_names = {child.name() for child in self.settings.children()}
@@ -371,6 +415,12 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 for child in param['children']:
                     child_name = child['name']
                     child_type = child['type']
+
+                    # Special case: skip these
+                    if child_name == 'TriggerSave':
+                        continue
+                    if child_name == 'TriggerSaveLocation':
+                        continue
 
                     try:
                         if child_type in ['float', 'slide']:

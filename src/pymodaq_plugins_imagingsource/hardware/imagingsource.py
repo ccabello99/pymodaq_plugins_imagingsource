@@ -30,13 +30,12 @@ class ImagingSourceCamera:
     def __init__(self, info: str, callback: Optional[Callable] = None, **kwargs):
         super().__init__(**kwargs)
 
-        # create camera object
+        # Create camera object
         self.camera = ic4.Grabber()
         self.model_name = info.model_name
         self.device_info = info
 
-        # register device lost event handler
-        self.device_lost_token = self.camera.event_add_device_lost(self.camera_lost)
+        # Default place to look for saved device settings
         self.default_device_state_path = os.path.join(os.path.expanduser('~'), 'Downloads', f'{self.model_name}_settings.bin')
 
         # Callback setup for image grabbing
@@ -124,11 +123,6 @@ class ImagingSourceCamera:
         except ic4.IC4Exception:
             pass
 
-        try:
-            self.camera.event_remove_device_lost(self.device_lost_token)
-        except ic4.IC4Exception:
-            pass
-
         self._pixel_length = None
 
     def save_device_state(self):
@@ -148,10 +142,6 @@ class ImagingSourceCamera:
                 print(f"Failed to load device state: {e}")
         else:
             print("No saved settings file found to load.")
-
-    def camera_lost(self):
-        self.close()
-        print(f"Lost connection to {self.model_name}")
 
     def start_grabbing(self, frame_rate: int) -> None:
         """Start continuously to grab data.

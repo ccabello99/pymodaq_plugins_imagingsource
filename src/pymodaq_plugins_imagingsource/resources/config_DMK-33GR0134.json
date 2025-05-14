@@ -33,13 +33,26 @@
         }
     },
 
+    "trigger": {
+        "title": "Trigger Settings",
+        "name": "trigger", 
+        "type": "group",
+        "children": {
+            "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false},
+            "Trigger Source": {"title": "Trigger Source", "name": "TriggerSource", "type": "list", "value": "Any", "limits": ["Any", "Line1", "Software", "Action0"]},
+            "Trigger Activation": {"title": "Trigger Activation", "name": "TriggerActivation", "type": "list", "value": "RisingEdge", "limits": ["RisingEdge", "FallingEdge"]},
+            "Trigger Delay": {"title": "Trigger Delay (us)", "name": "TriggerDelay", "type": "float", "value": 100.0, "limits": [0.0, 100.0]},
+            "Trigger Mask": {"title": "Trigger Mask (us)", "name": "TriggerMask", "type": "float", "value": 0.0, "limits": [0.0, 2.0], "tip": "Specifies the time for which trigger pulses are ignored after accepting a trigger signal."}
+        }
+    },
+
     "misc": {
         "title": "Additional Settings",
         "name": "misc", 
         "type": "group",
         "children": {
-            "Gamma": {"title": "Gamma", "name": "Gamma", "type": "slide", "value": 1.0, "default": 1.0, "limits": [0.0, 2.0]},
             "Pixel Format": {"title": "Pixel Format", "name": "PixelFormat", "type": "list", "value": "Mono16", "limits": ["Mono8", "Mono16"]},
+            "Gamma": {"title": "Gamma", "name": "Gamma", "type": "slide", "value": 1.0, "default": 1.0, "limits": [0.0, 2.0]},
             "Gev SCPS Packet Size": {"title": "Gev SCPS Packet Size", "name": "GevSCPSPacketSize", "type": "int", "value": 1500},
             "Brightness": {"title": "Brightness", "name": "Brightness", "type": "slide", "value": 1.0, "default": 1.0, "limits": [0.0, 2.0]},
             "Contrast": {"title": "Contrast", "name": "Contrast", "type": "slide", "value": 1.0, "default": 1.0, "limits": [0.0, 2.0]},

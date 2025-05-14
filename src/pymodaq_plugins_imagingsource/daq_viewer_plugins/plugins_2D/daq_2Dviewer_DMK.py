@@ -145,37 +145,35 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             self.ini_detector()
     
         if name in self.controller.attribute_names:
-            try:
-                # Special cases
-                if name == 'ExposureTime':
-                    value *= 1e3
-                if name == "DeviceUserID":
-                    self.user_id = value
-                if name == "device_state_save":
-                    self.controller.camera.device_save_state_to_file(self.controller.default_device_state_path)
-                    return
-                if name == "device_state_load":
-                    filepath = self.settings.child('device_state', 'device_state_to_load').value()
-                    self.controller.camera.device_close()
-                    self.controller.camera.device_open_from_state_file(filepath)
-                    # Reinitialize what is needed
-                    self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
-                    self.controller.setup_acquisition()
-                    self.update_params_ui()
-                    return
-                if name == 'PixelFormat':
-                    if self.controller != None:
-                        self.controller.close()
-                    
-                    self.controller = self.init_controller()
-                    self.controller.camera.device_property_map.set_value(name, value)
-                    self.controller.setup_acquisition()
-                    print(f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !")
-                    self._prepare_view()
-
+            # Special cases
+            if name == 'ExposureTime':
+                value *= 1e3
+            if name == "DeviceUserID":
+                self.user_id = value
+            if name == "device_state_save":
+                self.controller.camera.device_save_state_to_file(self.controller.default_device_state_path)
+                return
+            if name == "device_state_load":
+                filepath = self.settings.child('device_state', 'device_state_to_load').value()
+                self.controller.camera.device_close()
+                self.controller.camera.device_open_from_state_file(filepath)
+                # Reinitialize what is needed
+                self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
+                self.controller.setup_acquisition()
+                self.update_params_ui()
+                return
+            if name == 'PixelFormat':
+                if self.controller != None:
+                    self.controller.close()
+                self.controller = self.init_controller()
                 self.controller.camera.device_property_map.set_value(name, value)
-            except ic4.IC4Exception:
-                pass 
+                self.controller.setup_acquisition()
+                print(f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !")
+                self._prepare_view()
+                return
+
+            # All the rest, just do :
+            self.controller.camera.device_property_map.set_value(name, value)
 
         if name == "update_roi":
             if value:  # Switching on ROI

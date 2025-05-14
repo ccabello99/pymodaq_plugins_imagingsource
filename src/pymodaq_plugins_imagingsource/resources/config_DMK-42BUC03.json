@@ -32,6 +32,15 @@
         }
     },
 
+    "trigger": {
+        "title": "Trigger Settings",
+        "name": "trigger", 
+        "type": "group",
+        "children": {
+            "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false}
+        }
+    },
+
     "misc": {
         "title": "Additional Settings",
         "name": "misc", 

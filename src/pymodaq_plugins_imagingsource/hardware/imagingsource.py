@@ -100,7 +100,7 @@ class ImagingSourceCamera:
 
     def get_detector_size(self) -> Tuple[int, int]:
         """Return width and height of detector in pixels."""
-        return self.camera.device_property_map['WidthMax'], self.camera.device_property_map['HeightMax']
+        return self.camera.device_property_map.get_value_int('WidthMax'), self.camera.device_property_map.get_value_int('HeightMax')
 
     def setup_acquisition(self) -> None:
         self.camera.stream_setup(self.sink, setup_option=ic4.StreamSetupOption.DEFER_ACQUISITION_START)

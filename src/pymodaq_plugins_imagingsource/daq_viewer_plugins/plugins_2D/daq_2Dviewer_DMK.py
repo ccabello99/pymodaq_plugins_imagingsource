@@ -152,6 +152,36 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             if self.controller != None:
                 self.close()
             self.ini_detector()
+
+        if name == "device_state_save":
+            self.controller.camera.device_save_state_to_file(self.controller.default_device_state_path)
+            return
+        if name == "device_state_load":
+            filepath = self.settings.child('device_state', 'device_state_to_load').value()
+            self.controller.camera.device_close()
+            self.controller.camera.device_open_from_state_file(filepath)
+            # Reinitialize what is needed
+            self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
+            self.controller.setup_acquisition()
+            self.update_params_ui()
+            return
+        if name == 'TriggerSave':
+            if value:
+                self.save_frame = True
+                return
+            else:
+                self.save_frame = False
+                return
+        if name == 'PixelFormat':
+            if self.controller != None:
+                self.controller.close()
+            self.controller = self.init_controller()
+            self.controller.camera.device_property_map.set_value(name, value)
+            self.controller.setup_acquisition()
+            print(f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !")
+            self.emit_status(ThreadCommand('Update_Status', [f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !"]))
+            self._prepare_view()
+            return
     
         if name in self.controller.attribute_names:
             # Special cases
@@ -159,43 +189,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 value *= 1e3
             if name == "DeviceUserID":
                 self.user_id = value
-            if name == "device_state_save":
-                self.controller.camera.device_save_state_to_file(self.controller.default_device_state_path)
-                return
-            if name == "device_state_load":
-                filepath = self.settings.child('device_state', 'device_state_to_load').value()
-                self.controller.camera.device_close()
-                self.controller.camera.device_open_from_state_file(filepath)
-                # Reinitialize what is needed
-                self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
-                self.controller.setup_acquisition()
-                self.update_params_ui()
-                return
-            if name == 'PixelFormat':
-                if self.controller != None:
-                    self.controller.close()
-                self.controller = self.init_controller()
-                self.controller.camera.device_property_map.set_value(name, value)
-                self.controller.setup_acquisition()
-                print(f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !")
-                self.emit_status(ThreadCommand('Update_Status', [f"Pixel format is now: {self.controller.camera.device_property_map.get_value_str(name)}. Restart live grab !"]))
-                self._prepare_view()
-                return
-            if name == 'TriggerSave':
-                if value:
-                    if not self.controller.camera.device_property_map.get_value_bool('TriggerMode'):
-                        print("Turn on Trigger Mode first !!")
-                        self.emit_status(ThreadCommand('Update_Status', ["Turn on Trigger Mode first !!"]))
-                        param.setValue(False)
-                        param.sigValueChanged.emit(param, False)
-                        return
-                    else:
-                        self.save_frame = True
-                        return
-                else:
-                    self.save_frame = False
-                    return
-
             # All the rest, just do :
             self.controller.camera.device_property_map.set_value(name, value)
 
@@ -204,7 +197,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
 
                 # We handle ROI and binning separately for clarity
                 (old_x, _, old_y, _, xbin, ybin) = self.controller.get_roi()  # Get current binning
-
                 y0, x0 = self.roi_info.origin.coordinates
                 height, width = self.roi_info.size.coordinates
 
@@ -213,7 +205,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 new_y = (old_y + y0) * xbin
                 new_width = width * ybin
                 new_height = height * ybin
-
+                
                 new_roi = (new_x, new_width, xbin, new_y, new_height, ybin)
                 self.update_rois(new_roi)
                 param.setValue(False)
@@ -279,10 +271,10 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                                     vend=new_y + new_height,
                                     hbin=new_xbinning,
                                     vbin=new_ybinning)
-            self.emit_status(ThreadCommand('Update_Status', [f'Changed ROI: {new_roi}']))
             self.close()
             self.ini_detector()
             self._prepare_view()
+            self.emit_status(ThreadCommand('Update_Status', [f'Changed ROI. Restart live grab now !']))
 
     def grab_data(self, Naverage: int = 1, live: bool = False, **kwargs) -> None:
         try:
@@ -300,7 +292,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             self.emit_status(ThreadCommand('Update_Status', [str(e), "log"]))
 
     def emit_data_callback(self, frame) -> None:
-        if self.save_frame:
+        if not self.save_frame:
             dte = DataToExport(f'{self.user_id}', data=[DataFromPlugins(
                 name=f'{self.user_id}',
                 data=[np.squeeze(frame)],
@@ -327,9 +319,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         try:
             self.device_enum.event_remove_device_list_changed(self.device_list_token)
             self.controller.camera.event_remove_device_lost(self.device_lost_token)
-            self.controller.close()
         except ic4.IC4Exception:
             pass
+        self.controller.close()
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False

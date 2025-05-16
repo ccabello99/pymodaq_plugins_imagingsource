@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import os
 from pathlib import Path
+import imageio.v3 as iio
 
 import warnings
 import numpy as np
@@ -305,7 +306,17 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 data=[np.squeeze(frame)],
                 dim=self.data_shape,
                 labels=[f'{self.user_id}_{self.data_shape}'],
-                axes=self.axes)], do_save=True)
+                axes=self.axes, do_save=True)])
+            timestamp = datetime.now().strftime("%Y-%m-%d")
+            index = self.settings.child('trigger', 'TriggerSaveIndex')
+            if not self.settings.child('trigger', 'TriggerSaveLocation').value():
+                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{timestamp}_{index.value()}.tiff")
+            else:
+                filepath = os.path.join(filepath, f"{timestamp}_{index.value()}.tiff")
+            iio.imwrite(filepath, frame) 
+            index.setValue(index.value()+1)
+            index.sigValueChanged.emit(index, index.value())
+
         self.dte_signal.emit(dte)
         self.controller.listener.frame_ready = False
 

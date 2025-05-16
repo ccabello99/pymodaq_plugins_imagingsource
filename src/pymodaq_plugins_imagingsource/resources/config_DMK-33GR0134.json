@@ -40,6 +40,8 @@
         "children": {
             "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false},
             "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false},
+            "Save Location": {"title": "Save Location", "name": "TriggerSaveLocation", "type": "str", "value": ""},
+            "Save Index": {"title": "Save Index", "name": "TriggerSaveIndex", "type": "int", "value": 0},
             "Trigger Source": {"title": "Trigger Source", "name": "TriggerSource", "type": "list", "value": "Any", "limits": ["Any", "Line1", "Software", "Action0"]},
             "Trigger Activation": {"title": "Trigger Activation", "name": "TriggerActivation", "type": "list", "value": "RisingEdge", "limits": ["RisingEdge", "FallingEdge"]},
             "Trigger Delay": {"title": "Trigger Delay (us)", "name": "TriggerDelay", "type": "float", "value": 100.0, "limits": [0.0, 100.0]},

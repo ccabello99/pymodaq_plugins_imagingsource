@@ -38,7 +38,9 @@
         "type": "group",
         "children": {
             "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false},
-            "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false}
+            "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false},
+            "Save Location": {"title": "Save Location", "name": "TriggerSaveLocation", "type": "str", "value": ""},
+            "Save Index": {"title": "Save Index", "name": "TriggerSaveIndex", "type": "int", "value": 0}
         }
     },
 

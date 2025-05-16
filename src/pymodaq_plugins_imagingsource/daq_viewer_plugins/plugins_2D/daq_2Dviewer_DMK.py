@@ -45,7 +45,17 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
 
     device_enum = ic4.DeviceEnum()
     devices = device_enum.devices()
-    camera_list = [device.model_name for device in devices]
+    camera_list = []
+
+    model_name_counts = {}
+    for device in devices:
+        model_name = device.model_name
+        count = model_name_counts.get(model_name, 0)
+        if count == 0:
+            camera_list.append(model_name)
+        else:
+            camera_list.append(f"{model_name}_{count}")
+        model_name_counts[model_name] = count + 1
     
 
     params = comon_parameters + [
@@ -351,8 +361,20 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
 
     def get_camera_list(self, device_enum: ic4.DeviceEnum):
         devices = device_enum.devices()
-        camera_list = [device.model_name for device in devices]
-        self.settings.param('camera_list').setLimits(camera_list)
+        camera_list = []
+
+        model_name_counts = {}
+        for device in devices:
+            model_name = device.model_name
+            count = model_name_counts.get(model_name, 0)
+            if count == 0:
+                camera_list.append(model_name)
+            else:
+                camera_list.append(f"{model_name}_{count}")
+            model_name_counts[model_name] = count + 1
+        param = self.settings.param('camera_list')
+        param.setLimits(camera_list)
+        param.sigLimitsChanged.emit(param, camera_list)
         return devices, camera_list
     
     def camera_lost(self, grabber):
@@ -424,6 +446,8 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                         continue
                     if child_name == 'TriggerSaveLocation':
                         continue
+                    if child_name == 'TriggerSaveIndex':
+                        continue                    
 
                     try:
                         if child_type in ['float', 'slide']:

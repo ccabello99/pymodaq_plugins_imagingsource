@@ -177,6 +177,13 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             self.update_params_ui()
             return
         if name == 'TriggerSave':
+            if not self.settings.child('trigger', 'TriggerMode').value():
+                print("Trigger mode is not active ! Start triggering first !")
+                self.emit_status(ThreadCommand('Update_Status', ["Trigger mode is not active ! Start triggering first !"]))
+                param = self.settings.child('trigger', 'TriggerSave')
+                param.setValue(False) # Turn off save on trigger if triggering is off
+                param.sigValueChanged.emit(param, False) 
+                return
             if value:
                 self.save_frame = True
                 return
@@ -200,6 +207,16 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 value *= 1e3
             if name == "DeviceUserID":
                 self.user_id = value
+            if name == 'TriggerSaveLocation':
+                return # we only need to reference this, nothing to do with the cam           
+            if name == 'TriggerSaveIndex':
+                return # we only need to reference this, nothing to do with the cam
+            if name == 'TriggerMode':
+                if not value:
+                    param = self.settings.child('trigger', 'TriggerSave')
+                    param.setValue(False) # Turn off save on trigger if we turn off triggering
+                    param.sigValueChanged.emit(param, False)
+                    self.save_frame = False
             # All the rest, just do :
             self.controller.camera.device_property_map.set_value(name, value)
 
@@ -317,12 +334,12 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 dim=self.data_shape,
                 labels=[f'{self.user_id}_{self.data_shape}'],
                 axes=self.axes, do_save=True)])
-            timestamp = datetime.now().strftime("%Y-%m-%d")
             index = self.settings.child('trigger', 'TriggerSaveIndex')
-            if not self.settings.child('trigger', 'TriggerSaveLocation').value():
-                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{timestamp}_{index.value()}.tiff")
+            filepath = self.settings.child('trigger', 'TriggerSaveLocation').value()
+            if not filepath:
+                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"tir_{index.value()}.tiff")
             else:
-                filepath = os.path.join(filepath, f"{timestamp}_{index.value()}.tiff")
+                filepath = os.path.join(filepath, f"tir_{index.value()}.tiff")
             iio.imwrite(filepath, frame) 
             index.setValue(index.value()+1)
             index.sigValueChanged.emit(index, index.value())

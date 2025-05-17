@@ -180,7 +180,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             if not self.settings.child('trigger', 'TriggerMode').value():
                 print("Trigger mode is not active ! Start triggering first !")
                 self.emit_status(ThreadCommand('Update_Status', ["Trigger mode is not active ! Start triggering first !"]))
-                param = self.settings.child('trigger', 'TriggerSave')
+                param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
                 param.setValue(False) # Turn off save on trigger if triggering is off
                 param.sigValueChanged.emit(param, False) 
                 return
@@ -207,16 +207,21 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 value *= 1e3
             if name == "DeviceUserID":
                 self.user_id = value
-            if name == 'TriggerSaveLocation':
-                return # we only need to reference this, nothing to do with the cam           
-            if name == 'TriggerSaveIndex':
-                return # we only need to reference this, nothing to do with the cam
             if name == 'TriggerMode':
                 if not value:
-                    param = self.settings.child('trigger', 'TriggerSave')
+                    param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
                     param.setValue(False) # Turn off save on trigger if we turn off triggering
                     param.sigValueChanged.emit(param, False)
                     self.save_frame = False
+            # we only need to reference these, nothing to do with the cam
+            if name == 'TriggerSaveLocation':
+                return
+            if name == 'TriggerSaveIndex':
+                return
+            if name == 'Filetype':
+                return
+            if name == 'Prefix':
+                return
             # All the rest, just do :
             self.controller.camera.device_property_map.set_value(name, value)
 
@@ -334,13 +339,15 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 dim=self.data_shape,
                 labels=[f'{self.user_id}_{self.data_shape}'],
                 axes=self.axes, do_save=True)])
-            index = self.settings.child('trigger', 'TriggerSaveIndex')
-            filepath = self.settings.child('trigger', 'TriggerSaveLocation').value()
+            index = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveIndex')
+            filepath = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveLocation').value()
+            prefix = self.settings.child('trigger', 'TriggerSaveOptions', 'Prefix').value()
+            filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()
             if not filepath:
-                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"tir_{index.value()}.tiff")
+                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{prefix}_{index.value()}.{filetype}")
             else:
-                filepath = os.path.join(filepath, f"tir_{index.value()}.tiff")
-            iio.imwrite(filepath, frame) 
+                filepath = os.path.join(filepath, f"{prefix}_{index.value()}.{filetype}")
+            iio.imwrite(filepath, frame)
             index.setValue(index.value()+1)
             index.sigValueChanged.emit(index, index.value())
 

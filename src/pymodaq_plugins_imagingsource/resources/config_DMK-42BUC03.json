@@ -38,9 +38,18 @@
         "type": "group",
         "children": {
             "Trigger Mode": {"title": "Trigger Mode", "name": "TriggerMode", "type": "led_push", "value": false},
-            "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false},
-            "Save Location": {"title": "Save Location", "name": "TriggerSaveLocation", "type": "str", "value": ""},
-            "Save Index": {"title": "Save Index", "name": "TriggerSaveIndex", "type": "int", "value": 0}
+            "TriggerSaveOptions": {
+                "title": "Save Options",
+                "name": "TriggerSaveOptions", 
+                "type": "group",
+                "children": {
+                    "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false},
+                    "Save Location": {"title": "Save Location", "name": "TriggerSaveLocation", "type": "str", "value": ""},
+                    "Save Index": {"title": "Save Index", "name": "TriggerSaveIndex", "type": "int", "value": 0},
+                    "Image Filetype": {"title": "Image Filetype", "name": "Filetype", "type": "list", "value": "tiff", "limits": ["tiff", "png", "jpeg"]},
+                    "Image File Prefix": {"title": "Image File Prefix", "name": "Prefix", "type": "str", "value": "tir"}
+                }
+            }
         }
     },
 

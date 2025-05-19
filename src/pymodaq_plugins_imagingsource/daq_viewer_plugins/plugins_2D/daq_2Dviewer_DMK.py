@@ -344,9 +344,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             prefix = self.settings.child('trigger', 'TriggerSaveOptions', 'Prefix').value()
             filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()
             if not filepath:
-                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{prefix}_{index.value()}.{filetype}")
+                filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{prefix}{index.value()}.{filetype}")
             else:
-                filepath = os.path.join(filepath, f"{prefix}_{index.value()}.{filetype}")
+                filepath = os.path.join(filepath, f"{prefix}{index.value()}.{filetype}")
             iio.imwrite(filepath, frame)
             index.setValue(index.value()+1)
             index.sigValueChanged.emit(index, index.value())

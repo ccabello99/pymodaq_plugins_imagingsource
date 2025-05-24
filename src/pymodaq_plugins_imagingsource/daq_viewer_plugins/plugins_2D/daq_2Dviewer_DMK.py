@@ -121,9 +121,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         # Register device lost event handler
         self.device_lost_token = self.controller.camera.event_add_device_lost(self.camera_lost)
 
-        # Initialize pixel format before starting stream to avoid default RGB types
-        self.controller.camera.device_property_map.set_value('PixelFormat', 'Mono8')
-
         # Update the UI with available and current camera parameters
         self.add_attributes_to_settings()
         self.update_params_ui()
@@ -137,6 +134,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         misc_group = next(attr for attr in self.controller.attributes if attr['name'] == 'misc')
         pixel_format_limits = next(child['limits'] for child in misc_group.get('children', []) if child['name'] == 'PixelFormat')
         self.settings.child('misc', 'PixelFormat').setLimits(pixel_format_limits)
+
+        # Initialize pixel format before starting stream to avoid default RGB types
+        self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
 
         # Initialize the stream but defer acquisition start until we start grabbing
         self.controller.setup_acquisition()

@@ -42,7 +42,6 @@ class ImagingSourceCamera:
         self.listener = Listener()
         self.sink = ic4.QueueSink(self.listener, max_output_buffers=1)
 
-        self._pixel_length: Optional[float] = None
         self.attributes = {}
         self.open()
         if callback is not None:

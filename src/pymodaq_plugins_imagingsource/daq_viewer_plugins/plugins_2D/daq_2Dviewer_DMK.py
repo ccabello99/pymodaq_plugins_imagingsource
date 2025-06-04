@@ -3,6 +3,7 @@ import imagingcontrol4 as ic4
 import os
 import imageio as iio
 import h5py
+import json
 from uuid6 import uuid7
 
 import warnings
@@ -244,7 +245,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                     print(f"Error setting LECO saving base path: {e}")
                     self.emit_status(ThreadCommand('Update_Status', [f"Error setting LECO saving base path: {e}"]))
         if name == 'leco_metadata':
-            self.metadata = value
+            self.metadata = json.loads(value)
     
         if name in self.controller.attribute_names:
             # Special cases

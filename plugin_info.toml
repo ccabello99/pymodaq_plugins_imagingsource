@@ -12,7 +12,7 @@ license = 'MIT'
 
 [plugin-install]
 #packages required for your plugin:
-packages-required = ['pymodaq>=4.0.0', 'imagingcontrol4', 'imageio', 'uuid7']
+packages-required = ['pymodaq>=4.0.0', 'imagingcontrol4', 'imageio', 'uuid6']
 
 [features]  # defines the plugin features contained into this plugin
 instruments = false  # true if plugin contains instrument classes (else false, notice the lowercase for toml files)

@@ -16,7 +16,8 @@ dependencies = [
     'numpy',
     'imagingcontrol4'
     'imageio',
-    'uuid7'
+    'uuid6',
+    'h5py'
 ]
 
 authors = [

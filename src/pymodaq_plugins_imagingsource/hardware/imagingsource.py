@@ -7,6 +7,7 @@ import numpy as np
 from qtpy import QtCore
 import json
 import os
+import time
 
 if not hasattr(QtCore, "pyqtSignal"):
     QtCore.pyqtSignal = QtCore.Signal  # type: ignore
@@ -203,9 +204,9 @@ class Listener(ic4.QueueSinkListener):
         if buffer is not None:
             self.frame_ready = True
             frame = buffer.numpy_copy()
-            timestamp = int(np.round(buffer.meta_data.device_timestamp_ns))
+            #timestamp = int(np.round(buffer.meta_data.device_timestamp_ns)) # it seems this is not a useful timestamp as of now. maybe find out how to fix later
             buffer.release()
-            self.signals.data_ready.emit({"frame": frame, "timestamp": timestamp})
+            self.signals.data_ready.emit({"frame": frame, "timestamp": time.time_ns()})
             
 
     def sink_connected(self, sink: ic4.QueueSink, image_type: ic4.ImageType, min_buffers_required: int) -> bool:

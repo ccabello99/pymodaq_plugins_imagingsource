@@ -93,7 +93,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
 
     def init_controller(self) -> ImagingSourceCamera:
 
-        # Init camera with first available camera (will be a model_name at this point)
+        # Init camera
         self.user_id = self.settings.param('camera_list').value()
         self.emit_status(ThreadCommand('Update_Status', [f"Trying to connect to {self.user_id}", 'log']))
         devices, camera_list = self.get_camera_list(self.device_enum)
@@ -156,7 +156,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             self.data_publisher = ExtendedPublisher(full_name=publisher_name, host=proxy_address, port=proxy_port)
             print(f"Data publisher {publisher_name} initialized for LECO logging")
             self.emit_status(ThreadCommand('Update_Status', [f"Data publisher {publisher_name} initialized for LECO logging"]))
-
 
         try:
             base_path = QtCore.QSettings().value()('leco_log/basepath', '')
@@ -364,7 +363,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 if not self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_start()
                 while not self.controller.listener.frame_ready:
-                    pass # do nothing until frame is available
+                    pass # do nothing until a frame is ready
                 if self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_stop()
         except Exception as e:
@@ -373,6 +372,8 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
     def emit_data_callback(self, frame_data: dict) -> None:
         frame = frame_data['frame']
         timestamp = frame_data['timestamp']
+        if frame.ndim == 3 and frame.shape[-1] == 1:
+            frame = frame.squeeze(-1)
         shape = frame.shape
 
         # First emit data to the GUI
@@ -393,9 +394,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 metadata['burst_metadata']['uuid'] = str(uuid7())
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
-            if self.model_name == 'DMK-33GR0134':
+            if self.controller.model_name == 'DMK-33GR0134':
                 metadata['detector_metadata']['fuzziness'] = 100 # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
-            elif self.model_name == 'DMK-42BUC03':
+            elif self.controller.model_name == 'DMK-42BUC03':
                 metadata['detector_metadata']['fuzziness'] = 1000
             count = 0
             for name in self.controller.attribute_names:
@@ -432,9 +433,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 index.sigValueChanged.emit(index, index.value())
             # Include device metadata to send back
             # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
-            if self.model_name == 'DMK-33GR0134':
+            if self.controller.model_name == 'DMK-33GR0134':
                 metadata['detector_metadata']['fuzziness'] = 100
-            elif self.model_name == 'DMK-42BUC03':
+            elif self.controller.model_name == 'DMK-42BUC03':
                 metadata['detector_metadata']['fuzziness'] = 1000
             count = 0
             for name in self.controller.attribute_names:
@@ -474,6 +475,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                                                  'serial_number': self.controller.device_info.serial}})
 
         # Prepare for next frame
+        print(metadata)
         self.metadata = None
         self.controller.listener.frame_ready = False
 

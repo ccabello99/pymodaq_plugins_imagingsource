@@ -395,9 +395,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
             if self.controller.model_name == 'DMK-33GR0134':
-                metadata['detector_metadata']['fuzziness'] = 100 # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
+                metadata['detector_metadata']['fuzziness'] = 0.1 # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
             elif self.controller.model_name == 'DMK-42BUC03':
-                metadata['detector_metadata']['fuzziness'] = 1000
+                metadata['detector_metadata']['fuzziness'] = 1
             count = 0
             for name in self.controller.attribute_names:
                 if 'Gain' in name and 'Auto' not in name:
@@ -434,9 +434,9 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             # Include device metadata to send back
             # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
             if self.controller.model_name == 'DMK-33GR0134':
-                metadata['detector_metadata']['fuzziness'] = 100
+                metadata['detector_metadata']['fuzziness'] = 0.1
             elif self.controller.model_name == 'DMK-42BUC03':
-                metadata['detector_metadata']['fuzziness'] = 1000
+                metadata['detector_metadata']['fuzziness'] = 1
             count = 0
             for name in self.controller.attribute_names:
                 if 'Gain' in name and 'Auto' not in name:

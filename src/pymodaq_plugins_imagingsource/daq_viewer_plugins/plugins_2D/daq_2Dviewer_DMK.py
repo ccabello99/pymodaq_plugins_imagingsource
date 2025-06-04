@@ -3,7 +3,7 @@ import imagingcontrol4 as ic4
 import os
 import imageio as iio
 import h5py
-from uuid_extensions import uuid7, uuid7str
+from uuid6 import uuid7
 
 import warnings
 import numpy as np
@@ -137,11 +137,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             if param.hasChildren():
                 for child in param.children():
                     child.sigValueChanged.emit(child, child.value())
-
-        # Ensure correct pixel format limits
-        #misc_group = next(attr for attr in self.controller.attributes if attr['name'] == 'misc')
-        #pixel_format_limits = next(child['limits'] for child in misc_group.get('children', []) if child['name'] == 'PixelFormat')
-        #self.settings.child('misc', 'PixelFormat').setLimits(pixel_format_limits)
 
         # Initialize pixel format before starting stream to avoid default RGB types
         self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
@@ -394,9 +389,13 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 metadata = self.metadata
             else:
                 metadata = {'burst_metadata':{}, 'file_metadata': {}, 'detector_metadata': {}}
-                metadata['burst_metadata']['uuid'] = uuid7str()
+                metadata['burst_metadata']['uuid'] = str(uuid7())
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
+            if self.model_name == 'DMK-33GR0134':
+                metadata['detector_metadata']['fuzziness'] = 100 # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
+            elif self.model_name == 'DMK-42BUC03':
+                metadata['detector_metadata']['fuzziness'] = 1000
             count = 0
             for name in self.controller.attribute_names:
                 if 'Gain' in name and 'Auto' not in name:
@@ -423,24 +422,29 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                     filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{prefix}{index.value()}.{filetype}")
                 else:
                     filepath = os.path.join(filepath, f"{prefix}{index.value()}.{filetype}")
-                metadata['burst_metadata']['uuid'] = uuid7str()
+                metadata['burst_metadata']['uuid'] = str(uuid7())
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
                 metadata['file_metadata']['filepath'] = filepath
                 metadata['file_metadata']['filename'] = filename
-                count = 0
-                for name in self.controller.attribute_names:
-                    if 'Gain' in name and 'Auto' not in name:
-                        metadata['detector_metadata']['gain'] = self.settings.child('gain', name).value()
-                        count += 1
-                    if 'Exposure' in name and 'Auto' not in name:
-                        metadata['detector_metadata']['exposure_time'] = self.settings.child('exposure', name).value()
-                        count += 1
-                    if count == 2:
-                        break
                 index.setValue(index.value()+1)
                 index.sigValueChanged.emit(index, index.value())
-
+            # Include device metadata to send back
+            # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
+            if self.model_name == 'DMK-33GR0134':
+                metadata['detector_metadata']['fuzziness'] = 100
+            elif self.model_name == 'DMK-42BUC03':
+                metadata['detector_metadata']['fuzziness'] = 1000
+            count = 0
+            for name in self.controller.attribute_names:
+                if 'Gain' in name and 'Auto' not in name:
+                    metadata['detector_metadata']['gain'] = self.settings.child('gain', name).value()
+                    count += 1
+                if 'Exposure' in name and 'Auto' not in name:
+                    metadata['detector_metadata']['exposure_time'] = self.settings.child('exposure', name).value()
+                    count += 1
+                if count == 2:
+                    break
             metadata['detector_metadata']['shape'] = shape
             if filetype == 'h5':
                 with h5py.File(os.path.join(filepath, filename), 'w') as f:
@@ -451,6 +455,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                     f.attrs['exposure_time'] = metadata['detector_metadata']['exposure_time']
                     f.attrs['gain'] = metadata['detector_metadata']['gain']
                     f.attrs['shape'] = metadata['detector_metadata']['shape']
+                    f.attrs['fuzziness'] = metadata['detector_metadata']['fuzziness']
             else:
                 iio.imwrite(filepath, frame)
 
@@ -459,12 +464,12 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             if self.send_frame_leco:                        
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
-                                                 'device_type': 'detector', 
+                                                 'message_type': 'detector', 
                                                  'serial_number': self.controller.device_info.GetSerialNumber()}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
-                                                 'device_type': 'detector',
+                                                 'message_type': 'detector',
                                                  'serial_number': self.controller.device_info.GetSerialNumber()}})
 
         # Prepare for next frame

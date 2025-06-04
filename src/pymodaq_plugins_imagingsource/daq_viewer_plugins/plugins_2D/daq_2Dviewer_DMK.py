@@ -475,7 +475,6 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                                                  'serial_number': self.controller.device_info.serial}})
 
         # Prepare for next frame
-        print(metadata)
         self.metadata = None
         self.controller.listener.frame_ready = False
 

@@ -3,7 +3,7 @@
 [plugin-info]
 SHORT_PLUGIN_NAME = 'imagingsource'
 
-package-url = 'https://github.com/ccabello99/pymodaq_plugins_imagingsource' #to modify
+package-url = 'https://github.com/ccabello99/pymodaq_plugins_imagingsource'
 description = 'PyMoDAQ plugin for interfacing with Imaging Source cameras.'
 
 author = 'Christian Cabello'
@@ -12,7 +12,7 @@ license = 'MIT'
 
 [plugin-install]
 #packages required for your plugin:
-packages-required = ['pymodaq>=4.0.0', 'imagingcontrol4', 'imageio']
+packages-required = ['pymodaq>=4.0.0', 'imagingcontrol4', 'imageio', 'uuid7']
 
 [features]  # defines the plugin features contained into this plugin
 instruments = false  # true if plugin contains instrument classes (else false, notice the lowercase for toml files)

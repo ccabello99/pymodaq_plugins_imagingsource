@@ -203,8 +203,9 @@ class Listener(ic4.QueueSinkListener):
         if buffer is not None:
             self.frame_ready = True
             frame = buffer.numpy_copy()
+            timestamp = int(np.round(buffer.meta_data.device_timestamp_ns * 1e-3))
             buffer.release()
-            self.signals.data_ready.emit(frame)
+            self.signals.data_ready.emit({"frame": frame, "timestamp": timestamp})
             
 
     def sink_connected(self, sink: ic4.QueueSink, image_type: ic4.ImageType, min_buffers_required: int) -> bool:

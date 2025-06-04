@@ -466,12 +466,12 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
+                                                 'serial_number': self.controller.device_info.serial}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
+                                                 'serial_number': self.controller.device_info.serial}})
 
         # Prepare for next frame
         self.metadata = None

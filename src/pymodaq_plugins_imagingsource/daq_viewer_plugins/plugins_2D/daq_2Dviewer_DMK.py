@@ -462,7 +462,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 iio.imwrite(filepath, frame)
 
         # Finally, handle publishing with LECO, including frame raw data if enabled to log frame captured/saved event
-        if self.data_publisher is not None:
+        if self.data_publisher is not None and self.save_frame:
             if self.send_frame_leco:                        
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 

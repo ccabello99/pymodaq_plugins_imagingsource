@@ -14,7 +14,7 @@ description = 'PyMoDAQ plugin for interfacing with Imaging Source cameras.'
 dependencies = [
     'pymodaq>=4.4.7',
     'numpy',
-    'imagingcontrol4'
+    'imagingcontrol4',
     'imageio',
     'uuid6',
     'h5py'

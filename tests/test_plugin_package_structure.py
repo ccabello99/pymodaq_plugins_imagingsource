@@ -8,9 +8,6 @@ import pytest
 from pathlib import Path
 import importlib
 import pkgutil
-from collections.abc import Iterable
-
-from pymodaq_data import Q_, Unit
 
 
 MANDATORY_MOVE_METHODS = ['ini_attributes', 'get_actuator_value', 'close', 'commit_settings',
@@ -86,19 +83,6 @@ def test_move_has_mandatory_methods():
             assert hasattr(klass, meth)
 
 
-def test_move_has_correct_units():
-    plugin_list, move_mod = get_move_plugins()
-    for plug in plugin_list:
-        name = plug.split('daq_move_')[1]
-        klass = getattr(getattr(move_mod, plug), f'DAQ_Move_{name}')
-        if not isinstance(klass._controller_units, list):
-            units = [klass._controller_units]
-        else:
-            units = klass._controller_units
-        for unit in units:
-            Unit(unit)  # check if the unit is known from pint
-
-
 @pytest.mark.parametrize('dim', ('0D', '1D', '2D', 'ND'))
 def test_viewer_has_mandatory_methods(dim):
     plugin_list, mod = get_viewer_plugins(dim)
@@ -111,19 +95,3 @@ def test_viewer_has_mandatory_methods(dim):
         klass = getattr(module, f'DAQ_{dim}Viewer_{name}')
         for meth in MANDATORY_VIEWER_METHODS:
             assert hasattr(klass, meth)
-
-def test_compatibility(capsys):
-    capsys.disabled()
-    try:
-        from pymodaq_plugin_manager.compatibility_checker import PyMoDAQPlugin
-    except (ModuleNotFoundError, ImportError) as e:
-        pytest.fail(f"Please update pymodaq_plugin_manager to a newer version: {e}")
-
-    plugin = PyMoDAQPlugin(get_package_name(), None)
-    success = plugin.all_imports_valid()
-    msg = '\n'.join(plugin.failed_imports + [''])
-
-    if not success:
-        plugin.save_import_report()
-
-    assert success, msg

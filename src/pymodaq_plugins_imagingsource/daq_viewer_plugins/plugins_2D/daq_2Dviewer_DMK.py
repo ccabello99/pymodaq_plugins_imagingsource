@@ -389,15 +389,16 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         if not self.save_frame:
             if self.metadata is not None:
                 metadata = self.metadata
+                metadata['burst_metadata']['user_id'] = self.user_id
+                metadata['burst_metadata']['timestamp'] = timestamp
             else:
                 metadata = {'burst_metadata':{}, 'file_metadata': {}, 'detector_metadata': {}}
                 metadata['burst_metadata']['uuid'] = str(uuid7())
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
-            if self.controller.model_name == 'DMK-33GR0134':
-                metadata['detector_metadata']['fuzziness'] = 0.1 # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
-            elif self.controller.model_name == 'DMK-42BUC03':
-                metadata['detector_metadata']['fuzziness'] = 1
+            # Include device metadata to send back
+            # Account for some uncertainty in timestamp of frame, assume ~100 us for now
+            metadata['detector_metadata']['fuzziness'] = 0.1
             count = 0
             for name in self.controller.attribute_names:
                 if 'Gain' in name and 'Auto' not in name:
@@ -412,6 +413,7 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
         
         elif self.save_frame:
             index = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveIndex')
+            filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()
             if self.metadata is not None:
                 metadata = self.metadata
                 filepath = self.metadata['file_metadata']['filepath']
@@ -419,11 +421,10 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             else:
                 filepath = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveLocation').value()
                 prefix = self.settings.child('trigger', 'TriggerSaveOptions', 'Prefix').value()
-                filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()
                 if not filepath:
-                    filepath = os.path.join(os.path.expanduser('~'), 'Downloads', f"{prefix}{index.value()}.{filetype}")
-                else:
-                    filepath = os.path.join(filepath, f"{prefix}{index.value()}.{filetype}")
+                    filepath = os.path.join(os.path.expanduser('~'), 'Downloads')
+                filename = f"{prefix}{index.value()}.{filetype}"
+                metadata = {'burst_metadata':{}, 'file_metadata': {}, 'detector_metadata': {}}
                 metadata['burst_metadata']['uuid'] = str(uuid7())
                 metadata['burst_metadata']['user_id'] = self.user_id
                 metadata['burst_metadata']['timestamp'] = timestamp
@@ -431,12 +432,8 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                 metadata['file_metadata']['filename'] = filename
                 index.setValue(index.value()+1)
                 index.sigValueChanged.emit(index, index.value())
-            # Include device metadata to send back
-            # Account for some uncertainty in timestamp of frame, assume 100 us or 1 ms for now for ethernet or usb camera, respectively
-            if self.controller.model_name == 'DMK-33GR0134':
-                metadata['detector_metadata']['fuzziness'] = 0.1
-            elif self.controller.model_name == 'DMK-42BUC03':
-                metadata['detector_metadata']['fuzziness'] = 1
+
+            metadata['detector_metadata']['fuzziness'] = 0.1 # Account for some uncertainty in timestamp of frame, assume ~100 us for now
             count = 0
             for name in self.controller.attribute_names:
                 if 'Gain' in name and 'Auto' not in name:
@@ -459,20 +456,20 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
                     f.attrs['shape'] = metadata['detector_metadata']['shape']
                     f.attrs['fuzziness'] = metadata['detector_metadata']['fuzziness']
             else:
-                iio.imwrite(filepath, frame)
+                iio.imwrite(os.path.join(os.path.expanduser('~'), 'Downloads', filename), frame)
 
-        # Finally, handle publishing with LECO, including frame raw data if enabled to log frame captured/saved event
+        # Finally, handle publishing with LECO, including frame raw data if enabled to log frame saved event
         if self.data_publisher is not None and self.save_frame:
             if self.send_frame_leco:                        
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.serial}})
+                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.serial}})
+                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
 
         # Prepare for next frame
         self.metadata = None

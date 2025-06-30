@@ -72,9 +72,13 @@ class ImagingSourceCamera:
         """Get the attributes of the camera and store them in a dictionary."""
         model_name = self.model_name.replace(" ", "-")
         file_path = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq', f'config_{model_name}.json')
-        with open(file_path, 'r') as file:
-            attributes = json.load(file)
-            self.attributes = self.clean_device_attributes(attributes)
+
+        try:
+            with open(file_path, 'r') as file:
+                attributes = json.load(file)
+                self.attributes = self.clean_device_attributes(attributes)
+        except Exception as e:
+            log.error(f"Could not find attributes config at {file_path}:", e)
 
     def get_roi(self) -> Tuple[float, float, float, float, int, int]:
         """Return x0, width, y0, height, xbin, ybin."""
@@ -129,19 +133,19 @@ class ImagingSourceCamera:
         save_path = self.default_device_state_path
         try:
             self.camera.device_save_state_to_file(save_path)
-            print(f"Device state saved to {save_path}")
+            log.info(f"Device state saved to {save_path}")
         except ic4.IC4Exception as e:
-            print(f"Failed to save device state: {e}")
+            log.error(f"Failed to save device state: {e}")
 
     def load_device_state(self, load_path):
         if os.path.isfile(load_path):
             try:
                 self.camera.device_load_state_from_file(load_path)
-                print(f"Device state loaded from {load_path}")
+                log.info(f"Device state loaded from {load_path}")
             except ic4.IC4Exception as e:
-                print(f"Failed to load device state: {e}")
+                log.error(f"Failed to load device state: {e}")
         else:
-            print("No saved settings file found to load.")
+            log.warning("No saved settings file found to load.")
 
     def start_grabbing(self, frame_rate: int) -> None:
         """Start continuously to grab data.

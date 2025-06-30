@@ -24,7 +24,7 @@ from pymodaq.control_modules.viewer_utility_classes import main, DAQ_Viewer_base
 from qtpy import QtWidgets, QtCore
 
 
-class DAQ_2DViewer_DMK(DAQ_Viewer_base):
+class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
     """ 
     
     * Tested with DMK 42BUC03/33GR0134 cameras.
@@ -76,7 +76,8 @@ class DAQ_2DViewer_DMK(DAQ_Viewer_base):
             {'title': 'Proxy Server Address', 'name': 'proxy_address', 'type': 'str', 'value': 'localhost', 'default': 'localhost'}, # Either IP or hostname of LECO proxy server
             {'title': 'Proxy Server Port', 'name': 'proxy_port', 'type': 'int', 'value': 11100, 'default': 11100},
             {'title': 'Metadata', 'name': 'leco_metadata', 'type': 'str', 'value': '', 'readonly': True},
-            {'title': 'Saving Base Path', 'name': 'leco_basepath', 'type': 'str', 'value': ''}, # This is the base directory for a file path sent from a remote director in the metadata
+            {'title': 'Saving Base Path:', 'name': 'leco_basepath', 'type': 'browsepath', 'value': '', 'filetype': False,
+             'tip': 'This is the base directory for a file path sent from a remote director in the metadata'},
         ]}
     ]
 

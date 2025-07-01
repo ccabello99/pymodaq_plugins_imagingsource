@@ -22,6 +22,7 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.utils.data import Axis, DataFromPlugins, DataToExport
 from pymodaq.control_modules.viewer_utility_classes import main, DAQ_Viewer_base, comon_parameters
 from qtpy import QtWidgets, QtCore
+from typing import Optional
 
 
 class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
@@ -391,6 +392,24 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
         self.dte_signal.emit(dte)
 
         # Now, handle data saving with filepath given by user in trigger save settings or from metadata set remotely with LECO
+        self.handle_metadata_and_saving(frame, timestamp, shape)
+
+        # Prepare for next frame
+        self.metadata = None
+        self.controller.listener.frame_ready = False
+
+    def handle_metadata_and_saving(self, frame, timestamp, shape):
+        metadata = self.get_metadata_and_save(frame, timestamp, shape)
+        if self.send_frame_leco:
+            self.publish_metadata(metadata, frame)
+        else:
+            self.publish_metadata(metadata)        
+
+    def stop(self):
+        self.controller.camera.acquisition_stop()
+        return ''
+    
+    def get_metadata_and_save(self, frame, timestamp, shape):
         if not self.save_frame:
             if self.metadata is not None:
                 metadata = self.metadata
@@ -422,9 +441,9 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 metadata = self.metadata
                 filepath = self.metadata['file_metadata']['filepath']
                 filename = self.metadata['file_metadata']['filename']
-                basepath = self.settings_imagingsource.value('leco_log/basepath', '')
-                if basepath:
-                    filepath = os.path.join(basepath, os.path.basename(filepath))
+                self.metadata['burst_metadata']['user_id'] = self.user_id
+                basepath = self.settings.child('leco_log', 'leco_basepath').value()
+                filepath = os.path.normpath(os.path.join(basepath, filepath.lstrip(os.path.sep)))
             else:
                 filepath = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveLocation').value()
                 prefix = self.settings.child('trigger', 'TriggerSaveOptions', 'Prefix').value()
@@ -453,7 +472,11 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                     break
             metadata['detector_metadata']['shape'] = shape
             if filetype == 'h5':
-                with h5py.File(os.path.join(filepath, filename), 'w') as f:
+                if not filename.endswith('.h5'):
+                    filename += '.h5'
+                full_path = os.path.join(filepath, filename)
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                with h5py.File(full_path, 'w') as f:
                     dataset_name = f"frame_{timestamp}"
                     f.create_dataset(dataset_name, data=frame)
                     f.attrs['uuid'] = metadata['burst_metadata']['uuid']
@@ -463,29 +486,30 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                     f.attrs['gain'] = metadata['detector_metadata']['gain']
                     f.attrs['shape'] = metadata['detector_metadata']['shape']
                     f.attrs['fuzziness'] = metadata['detector_metadata']['fuzziness']
+                    f.attrs['format_version'] = 'hdf5-v0.1'
             else:
-                iio.imwrite(os.path.join(filepath, f"{filename}.{filetype}"), frame)
-
-        # Finally, handle publishing with LECO, including frame raw data if enabled to log frame saved event
+                if not filename.endswith(f".{filetype}"):
+                    filename += f".{filetype}"
+                if filetype not in ['png', 'jpg', 'jpeg', 'tiff', 'tif']:
+                    print(f"Unsupported file type {filetype} for saving frame. Supported types are: png, jpg, jpeg, tiff, tif, h5")
+                    self.emit_status(ThreadCommand('Update_Status', [f"Unsupported file type {filetype} for saving frame. Supported types are: png, jpg, jpeg, tiff, tif, h5"]))
+                    return
+                full_path = os.path.join(filepath, f"{filename}.{filetype}")
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                iio.imwrite(full_path, frame)
+    
+    def publish_metadata(self, metadata, frame: Optional[np.ndarray] = None):
         if self.data_publisher is not None and self.save_frame:
             if self.send_frame_leco:                        
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
+                                                 'serial_number': self.controller.device_info.serial}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.GetSerialNumber()}})
-
-        # Prepare for next frame
-        self.metadata = None
-        self.controller.listener.frame_ready = False
-
-    def stop(self):
-        self.controller.camera.acquisition_stop()
-        return ''
+                                                 'serial_number': self.controller.device_info.serial}})        
     
     def close(self):
         """Terminate the communication protocol"""
@@ -496,6 +520,14 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
         except ic4.IC4Exception:
             pass
         self.controller.close()
+
+        # Make sure we set these to false if camera disconnected
+        param = self.settings.child('trigger', 'TriggerMode')
+        param.setValue(False) # Turn off save on trigger if triggering is off
+        param.sigValueChanged.emit(param, False)
+        param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
+        param.setValue(False) # Turn off save on trigger if triggering is off
+        param.sigValueChanged.emit(param, False)         
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False

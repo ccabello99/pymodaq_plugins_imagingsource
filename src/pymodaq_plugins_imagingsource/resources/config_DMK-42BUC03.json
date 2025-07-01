@@ -46,7 +46,7 @@
                     "Save On Trigger": {"title": "Save on Trigger ?", "name": "TriggerSave", "type": "led_push", "value": false},
                     "Save Location": {"title": "Save Location:", "name": "TriggerSaveLocation", "type": "browsepath", "value": "", "filetype": false},
                     "Save Index": {"title": "Save Index", "name": "TriggerSaveIndex", "type": "int", "value": 0},
-                    "Image Filetype": {"title": "Image Filetype", "name": "Filetype", "type": "list", "value": "tiff", "limits": ["tiff", "png", "jpeg"]},
+                    "Image Filetype": {"title": "Image Filetype", "name": "Filetype", "type": "list", "value": "tiff", "limits": ["h5", "tiff", "png", "jpeg"]},
                     "Image File Prefix": {"title": "Image File Prefix", "name": "Prefix", "type": "str", "value": "tir"}
                 }
             }

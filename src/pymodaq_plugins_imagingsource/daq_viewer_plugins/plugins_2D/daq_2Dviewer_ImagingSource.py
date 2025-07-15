@@ -124,6 +124,8 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
         self.add_attributes_to_settings()
         self.update_params_ui()
         for param in self.settings.children():
+            if param.name() == 'device_info':
+                continue
             param.sigValueChanged.emit(param, param.value())
             if param.hasChildren():
                 for child in param.children():
@@ -203,10 +205,10 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                 self.user_id = value
             if name == 'TriggerMode':
                 if not value:
+                    self.save_frame = False
                     param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
                     param.setValue(False) # Turn off save on trigger if we turn off triggering
                     param.sigValueChanged.emit(param, False)
-                    self.save_frame = False
             # we only need to reference these, nothing to do with the cam
             if name == 'TriggerSaveLocation':
                 return
@@ -371,6 +373,14 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
         except ic4.IC4Exception:
             pass
         self.controller.close()
+
+        # Make sure we set these to false if camera disconnected
+        param = self.settings.child('trigger', 'TriggerMode')
+        param.setValue(False) # Turn off save on trigger if triggering is off
+        param.sigValueChanged.emit(param, False)
+        param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
+        param.setValue(False) # Turn off save on trigger if triggering is off
+        param.sigValueChanged.emit(param, False)         
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False

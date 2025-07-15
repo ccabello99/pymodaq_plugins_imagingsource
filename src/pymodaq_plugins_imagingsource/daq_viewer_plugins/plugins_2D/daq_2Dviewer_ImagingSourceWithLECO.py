@@ -72,13 +72,15 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
             {'title': 'Image Height', 'name': 'height', 'type': 'int', 'value': 960, 'readonly': True},
         ]},
         {'title': 'LECO Logging', 'name': 'leco_log', 'type': 'group', 'children': [
-            {'title': 'Send Frame Data ?', 'name': 'leco_send', 'type': 'led_push', 'value': False, 'default': False}, # This leads to huge performance drop as of now. Only use for single grabs, not continous
+            {'title': 'Send Frame Data ?', 'name': 'leco_send', 'type': 'led_push', 'value': False, 'default': False,
+                'tip': 'This leads to huge performance drop as of now. Only use for single grabs, not continuous'},
             {'title': 'Publisher Name', 'name': 'publisher_name', 'type': 'str', 'value': ''},
-            {'title': 'Proxy Server Address', 'name': 'proxy_address', 'type': 'str', 'value': 'localhost', 'default': 'localhost'}, # Either IP or hostname of LECO proxy server
+            {'title': 'Proxy Server Address', 'name': 'proxy_address', 'type': 'str', 'value': 'localhost', 'default': 'localhost',
+                'tip': 'Either IP or hostname of LECO proxy server'},
             {'title': 'Proxy Server Port', 'name': 'proxy_port', 'type': 'int', 'value': 11100, 'default': 11100},
             {'title': 'Metadata', 'name': 'leco_metadata', 'type': 'str', 'value': '', 'readonly': True},
             {'title': 'Saving Base Path:', 'name': 'leco_basepath', 'type': 'browsepath', 'value': '', 'filetype': False,
-             'tip': 'This is the base directory for a file path sent from a remote director in the metadata'},
+                'tip': 'This is the base directory for a file path sent from a remote director in the metadata'},
         ]}
     ]
 
@@ -140,6 +142,8 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
         self.add_attributes_to_settings()
         self.update_params_ui()
         for param in self.settings.children():
+            if param.name() == 'device_info':
+                continue
             param.sigValueChanged.emit(param, param.value())
             if param.hasChildren():
                 for child in param.children():
@@ -260,10 +264,10 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 self.user_id = value
             if name == 'TriggerMode':
                 if not value:
+                    self.save_frame = False
                     param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
                     param.setValue(False) # Turn off save on trigger if we turn off triggering
                     param.sigValueChanged.emit(param, False)
-                    self.save_frame = False
             # we only need to reference these, nothing to do with the cam
             if name == 'TriggerSaveLocation':
                 return
@@ -409,8 +413,10 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
         self.controller.camera.acquisition_stop()
         return ''
     
-    def get_metadata_and_save(self, frame, timestamp, shape):
-        if not self.save_frame:
+    def get_metadata_and_save(self, frame, timestamp, shape):        
+        if self.save_frame:
+            index = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveIndex')
+            filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()            
             if self.metadata is not None:
                 metadata = self.metadata
                 metadata['burst_metadata']['user_id'] = self.user_id
@@ -433,10 +439,6 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 if count == 2:
                     break
             metadata['detector_metadata']['shape'] = shape
-        
-        elif self.save_frame:
-            index = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSaveIndex')
-            filetype = self.settings.child('trigger', 'TriggerSaveOptions', 'Filetype').value()
             if self.metadata is not None:
                 metadata = self.metadata
                 filepath = self.metadata['file_metadata']['filepath']
@@ -497,6 +499,7 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 full_path = os.path.join(filepath, f"{filename}.{filetype}")
                 os.makedirs(os.path.dirname(full_path), exist_ok=True)
                 iio.imwrite(full_path, frame)
+        return metadata
     
     def publish_metadata(self, metadata, frame: Optional[np.ndarray] = None):
         if self.data_publisher is not None and self.save_frame:
@@ -504,12 +507,14 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.serial}})
+                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'format_version': 'hdf5-v0.1'}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.serial}})        
+                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'format_version': 'hdf5-v0.1'}})
     
     def close(self):
         """Terminate the communication protocol"""
@@ -527,7 +532,7 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
         param.sigValueChanged.emit(param, False)
         param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
         param.setValue(False) # Turn off save on trigger if triggering is off
-        param.sigValueChanged.emit(param, False)         
+        param.sigValueChanged.emit(param, False)     
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False

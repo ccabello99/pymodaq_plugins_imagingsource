@@ -59,7 +59,7 @@ Extensions
 
 Installation instructions
 =========================
-* Tested on PyMoDAQ version 5.0.5
-* Tested on Windows 11
-* Must install legacy "Device Driver for USB Cameras" &  "Device Driver for GigE Cameras", and corresponding IC4 Drivers from https://www.theimagingsource.com/en-us/support/download/ before running
+* Tested on PyMoDAQ version \>5.0.5
+* Tested on Windows 11/ Ubuntu 24.04
+* Must install appropriate drivers and SDK from https://www.theimagingsource.com/en-us/support/download/ before running
 * Config files are needed for different camera models. Examples for DMK-42BUC03 and DMK-33GR0134 are given in the resources directory. These must be placed in the .pymodaq/resources folder

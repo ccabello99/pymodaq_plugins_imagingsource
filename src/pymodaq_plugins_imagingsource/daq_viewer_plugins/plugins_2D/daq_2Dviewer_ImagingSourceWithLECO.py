@@ -5,6 +5,7 @@ import imageio as iio
 import h5py
 import json
 from uuid6 import uuid7
+import platform
 
 import warnings
 import numpy as np
@@ -12,8 +13,9 @@ import numpy as np
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
 
 # Prevents COM initialization errors associated with ic4.Library.init() being called at the top of the class
-import pythoncom
-pythoncom.CoInitialize()
+if platform.system() == 'Windows':
+    import pythoncom
+    pythoncom.CoInitialize()
 
 from pymodaq.utils.daq_utils import ThreadCommand
 from pymodaq_plugins_imagingsource.hardware.imagingsource import ImagingSourceCamera
@@ -30,9 +32,8 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
     
     * Tested with DMK 42BUC03/33GR0134 cameras.
     * Tested on PyMoDAQ version >= 5.0.2
-    * Tested on Windows 11
-    * Installation instructions: For this camera, you need to install the Imaging Source drivers, 
-                                specifically "Device Driver for USB Cameras" and/or "Device Driver for GigE Cameras" in legacy software
+    * Tested on Windows 11/ Ubuntu 24 .04
+    * Installation instructions: You must install the Imaging Source drivers for your OS and SDK before use
 
     """
 

@@ -8,6 +8,7 @@ from qtpy import QtCore
 import json
 import os
 import time
+import platform
 
 if not hasattr(QtCore, "pyqtSignal"):
     QtCore.pyqtSignal = QtCore.Signal  # type: ignore
@@ -70,15 +71,21 @@ class ImagingSourceCamera:
     
     def get_attributes(self):
         """Get the attributes of the camera and store them in a dictionary."""
-        model_name = self.model_name.replace(" ", "-")
-        file_path = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq', f'config_{model_name}.json')
+        name = self.model_name.replace(" ", "-")
 
-        try:
+        if platform.system() == 'Windows':
+            base_dir = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq')
+        else:
+            base_dir = '/etc/.pymodaq'
+
+        file_path = os.path.join(base_dir, f'config_{name}.json')
+
+        try:        
             with open(file_path, 'r') as file:
                 attributes = json.load(file)
                 self.attributes = self.clean_device_attributes(attributes)
         except Exception as e:
-            log.error(f"Could not find attributes config at {file_path}:", e)
+            log.error(f"The config file was not found at {file_path}: ", e, " Make sure to add it !")
 
     def get_roi(self) -> Tuple[float, float, float, float, int, int]:
         """Return x0, width, y0, height, xbin, ybin."""

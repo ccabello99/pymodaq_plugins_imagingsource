@@ -72,13 +72,14 @@ class ImagingSourceCamera:
     def get_attributes(self):
         """Get the attributes of the camera and store them in a dictionary."""
         name = self.model_name.replace(" ", "-")
+        os_ = platform.system()
 
-        if platform.system() == 'Windows':
+        if os_ == 'Windows':
             base_dir = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq')
         else:
             base_dir = '/etc/.pymodaq'
 
-        file_path = os.path.join(base_dir, f'config_{name}.json')
+        file_path = os.path.join(base_dir, f'config_{name}_{os_}.json')
 
         try:        
             with open(file_path, 'r') as file:

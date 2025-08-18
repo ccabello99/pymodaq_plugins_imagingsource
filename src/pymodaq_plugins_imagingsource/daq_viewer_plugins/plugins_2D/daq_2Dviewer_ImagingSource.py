@@ -1,6 +1,7 @@
 import numpy as np
 import imagingcontrol4 as ic4
 import os
+import platform
 import imageio as iio
 import h5py
 import json
@@ -12,8 +13,9 @@ import numpy as np
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
 
 # Prevents COM initialization errors associated with ic4.Library.init() being called at the top of the class
-import pythoncom
-pythoncom.CoInitialize()
+if platform.system() == 'Windows':
+    import pythoncom
+    pythoncom.CoInitialize()
 
 from pymodaq.utils.daq_utils import ThreadCommand
 from pymodaq_plugins_imagingsource.hardware.imagingsource import ImagingSourceCamera
@@ -61,7 +63,7 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
     
 
     params = comon_parameters + [
-        {'title': 'Camera List:', 'name': 'camera_list', 'type': 'list', 'value': '', 'limits': camera_list},
+        {'title': 'Camera List:', 'name': 'camera_list', 'type': 'list', 'value': '', 'limits': camera_list},        
         {'title': 'ROI', 'name': 'roi', 'type': 'group', 'children': [
             {'title': 'Update ROI', 'name': 'update_roi', 'type': 'bool_push', 'value': False, 'default': False},
             {'title': 'Clear ROI+Bin', 'name': 'clear_roi', 'type': 'bool_push', 'value': False, 'default': False},

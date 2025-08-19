@@ -238,6 +238,8 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                 new_height = height * ybin
                 
                 new_roi = (new_x, new_width, xbin, new_y, new_height, ybin)
+                self.settings.child('roi', 'width').setValue(new_width)
+                self.settings.child('roi', 'height').setValue(new_height)
                 self.update_rois(new_roi)
                 param.setValue(False)
                 param.sigValueChanged.emit(param, False)

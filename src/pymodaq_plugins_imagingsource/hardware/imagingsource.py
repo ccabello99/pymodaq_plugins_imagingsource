@@ -105,14 +105,27 @@ class ImagingSourceCamera:
         inc = self.camera.device_property_map['Width'].increment  # minimum step size
         hstart = detector_clamp(hstart, m_width) // inc * inc
         vstart = detector_clamp(vstart, m_height) // inc * inc
-        self.camera.device_property_map.try_set_value('Width', int((detector_clamp(hend, m_width) - hstart) // inc * inc))
-        self.camera.device_property_map.try_set_value('Height', int((detector_clamp(vend, m_height) - vstart) // inc * inc))
+
+        requested_width = (detector_clamp(hend, m_width) - hstart) // inc * inc
+        requested_height = (detector_clamp(vend, m_height) - vstart) // inc * inc
+
+        # Snap to nearest valid width/height
+        valid_widths = self.camera.device_property_map['Width'].valid_value_set
+        valid_heights = self.camera.device_property_map['Height'].valid_value_set
+
+        width_to_set = min(valid_widths, key=lambda x: abs(x - requested_width))
+        height_to_set = min(valid_heights, key=lambda x: abs(x - requested_height))
+
+        self.camera.device_property_map.try_set_value('Width', int(width_to_set))
+        self.camera.device_property_map.try_set_value('Height', int(height_to_set))
         self.camera.device_property_map.try_set_value('BinningHorizontal', int(hbin))
-        self.camera.device_property_map.try_set_value('BinningVertical', int(vbin))
+        self.camera.device_property_map.try_set_value('BinningVertical', int(vbin))    
 
     def get_detector_size(self) -> Tuple[int, int]:
         """Return width and height of detector in pixels."""
-        return self.camera.device_property_map.get_value_int('WidthMax'), self.camera.device_property_map.get_value_int('HeightMax')
+        width = 'WidthMax' if platform.system() == 'Windows' else 'SensorWidth'
+        height = 'HeightMax' if platform.system() == 'Windows' else 'SensorHeight'
+        return self.camera.device_property_map.get_value_int(width), self.camera.device_property_map.get_value_int(height)
 
     def setup_acquisition(self) -> None:
         self.camera.stream_setup(self.sink, setup_option=ic4.StreamSetupOption.DEFER_ACQUISITION_START)

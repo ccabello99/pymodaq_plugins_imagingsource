@@ -5,6 +5,8 @@ import platform
 import imageio as iio
 import h5py
 import json
+import logging
+import sys
 from uuid6 import uuid7
 
 import warnings
@@ -20,9 +22,12 @@ if platform.system() == 'Windows':
 from pymodaq.utils.daq_utils import ThreadCommand
 from pymodaq_plugins_imagingsource.hardware.imagingsource import ImagingSourceCamera
 from pymodaq.utils.parameter import Parameter
+from pymodaq_utils.logger import get_module_name, set_logger
 from pymodaq.utils.data import Axis, DataFromPlugins, DataToExport
 from pymodaq.control_modules.viewer_utility_classes import main, DAQ_Viewer_base, comon_parameters
 from qtpy import QtWidgets, QtCore
+
+logger = set_logger(get_module_name(__file__))
 
 
 class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
@@ -37,11 +42,23 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
     """
 
     live_mode_available = True
+    
+    # Set log file location for IC4
+    if platform.system() == 'Windows':
+        base_dir = os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), '.pymodaq')
+    else:
+        base_dir = os.path.join(os.path.expanduser("~"), '.pymodaq/log')
+    os.makedirs(base_dir, exist_ok=True)
 
+    # Init IC4 Library
     try:
-        ic4.Library.init(api_log_level=ic4.LogLevel.INFO, log_targets=ic4.LogTarget.STDERR)
+        ic4.Library.init(
+            api_log_level=ic4.LogLevel.INFO,
+            log_targets=ic4.LogTarget.FILE,
+            log_file=os.path.join(base_dir, 'ic4.log')
+        )
     except RuntimeError:
-        pass # Library already initialized
+        pass  # Library already initialized
 
     device_enum = ic4.DeviceEnum()
     devices = device_enum.devices()
@@ -49,13 +66,20 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
     model_name_counts = {}
     for device in devices:
-        model_name = device.model_name
-        count = model_name_counts.get(model_name, 0)
-        if count == 0:
-            camera_list.append(model_name)
-        else:
-            camera_list.append(f"{model_name}_{count}")
-        model_name_counts[model_name] = count + 1
+        temp = ic4.Grabber()
+        temp.device_open(device)
+        try:
+            device_user_id = temp.device_property_map.get_value_str('DeviceUserID')
+            camera_list.append(device_user_id)
+        except Exception:
+            model_name = device.model_name
+            count = model_name_counts.get(model_name, 0)
+            if count == 0:
+                camera_list.append(model_name)
+            else:
+                camera_list.append(f"{model_name}_{count}")
+            model_name_counts[model_name] = count + 1
+        temp.device_close()
 
     
     # Default place to store qsettings for this module
@@ -407,13 +431,20 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
         model_name_counts = {}
         for device in devices:
-            model_name = device.model_name
-            count = model_name_counts.get(model_name, 0)
-            if count == 0:
-                camera_list.append(model_name)
-            else:
-                camera_list.append(f"{model_name}_{count}")
-            model_name_counts[model_name] = count + 1
+            temp = ic4.Grabber()
+            temp.device_open(device)
+            try:
+                device_user_id = temp.device_property_map.get_value_str('DeviceUserID')
+                camera_list.append(device_user_id)
+            except Exception:
+                model_name = device.model_name
+                count = model_name_counts.get(model_name, 0)
+                if count == 0:
+                    camera_list.append(model_name)
+                else:
+                    camera_list.append(f"{model_name}_{count}")
+                model_name_counts[model_name] = count + 1
+            temp.device_close()
         param = self.settings.param('camera_list')
         param.setLimits(camera_list)
         param.sigLimitsChanged.emit(param, camera_list)
@@ -560,7 +591,7 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                             pass
 
                 except ic4.IC4Exception:
-                    pass
+                    pass             
 
 if __name__ == '__main__':
     try:

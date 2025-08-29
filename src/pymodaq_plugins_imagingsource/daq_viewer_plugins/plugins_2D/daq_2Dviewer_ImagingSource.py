@@ -66,12 +66,10 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
     model_name_counts = {}
     for device in devices:
-        temp = ic4.Grabber()
-        temp.device_open(device)
-        try:
-            device_user_id = temp.device_property_map.get_value_str('DeviceUserID')
+        device_user_id = device.user_id
+        if device_user_id:
             camera_list.append(device_user_id)
-        except Exception:
+        else:
             model_name = device.model_name
             count = model_name_counts.get(model_name, 0)
             if count == 0:
@@ -79,8 +77,6 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
             else:
                 camera_list.append(f"{model_name}_{count}")
             model_name_counts[model_name] = count + 1
-        temp.device_close()
-
     
     # Default place to store qsettings for this module
     settings_imagingsource = QtCore.QSettings("PyMoDAQ", "ImagingSource")
@@ -431,12 +427,10 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
         model_name_counts = {}
         for device in devices:
-            temp = ic4.Grabber()
-            temp.device_open(device)
-            try:
-                device_user_id = temp.device_property_map.get_value_str('DeviceUserID')
+            device_user_id = device.user_id
+            if device_user_id:
                 camera_list.append(device_user_id)
-            except Exception:
+            else:
                 model_name = device.model_name
                 count = model_name_counts.get(model_name, 0)
                 if count == 0:
@@ -444,7 +438,6 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                 else:
                     camera_list.append(f"{model_name}_{count}")
                 model_name_counts[model_name] = count + 1
-            temp.device_close()
         param = self.settings.param('camera_list')
         param.setLimits(camera_list)
         param.sigLimitsChanged.emit(param, camera_list)

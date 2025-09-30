@@ -500,7 +500,7 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                     print(f"Unsupported file type {filetype} for saving frame. Supported types are: png, jpg, jpeg, tiff, tif, h5")
                     self.emit_status(ThreadCommand('Update_Status', [f"Unsupported file type {filetype} for saving frame. Supported types are: png, jpg, jpeg, tiff, tif, h5"]))
                     return
-                full_path = os.path.join(filepath, f"{filename}.{filetype}")
+                full_path = os.path.join(filepath, f"{filename}")
                 os.makedirs(os.path.dirname(full_path), exist_ok=True)
                 iio.imwrite(full_path, frame)
         return metadata
@@ -511,13 +511,13 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'serial_number': self.controller.device_info.serial,
                                                  'format_version': 'hdf5-v0.1'}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'serial_number': self.controller.device_info.serial,
                                                  'format_version': 'hdf5-v0.1'}})
     
     def close(self):

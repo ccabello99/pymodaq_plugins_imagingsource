@@ -507,17 +507,18 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
     
     def publish_metadata(self, metadata, frame: Optional[np.ndarray] = None):
         if self.data_publisher is not None and self.save_frame:
+            serial_number = self.controller.device_info.serial
             if self.send_frame_leco:                        
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'frame': frame, 'metadata': metadata, 
                                                  'message_type': 'detector', 
-                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'serial_number': serial_number,
                                                  'format_version': 'hdf5-v0.1'}})
             else:
                 self.data_publisher.send_data2({self.settings.child('leco_log', 'publisher_name').value(): 
                                                 {'metadata': metadata, 
                                                  'message_type': 'detector',
-                                                 'serial_number': self.controller.device_info.GetSerialNumber(),
+                                                 'serial_number': serial_number,
                                                  'format_version': 'hdf5-v0.1'}})
     
     def close(self):

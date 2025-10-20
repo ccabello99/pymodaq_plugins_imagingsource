@@ -3,11 +3,6 @@ import imagingcontrol4 as ic4
 import os
 import platform
 import imageio as iio
-import h5py
-import json
-import logging
-import sys
-from uuid6 import uuid7
 
 import warnings
 import numpy as np
@@ -154,7 +149,10 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                     child.sigValueChanged.emit(child, child.value())
 
         # Initialize pixel format before starting stream to avoid default RGB types
-        self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
+        try:
+            self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
+        except Exception:
+            pass # This parameter was not included in the config file
 
         # Initialize the stream but defer acquisition start until we start grabbing
         self.controller.setup_acquisition()
@@ -332,8 +330,12 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
     def grab_data(self, Naverage: int = 1, live: bool = False, **kwargs) -> None:
         try:
             self._prepare_view()
+            if "Acquisition Frame Rate" in self.controller.attributes:
+                frame_rate = self.settings.param('AcquisitionFrameRateAbs').value()
+            else:
+                frame_rate = None
             if live:
-                self.controller.start_grabbing(frame_rate=self.settings.param('AcquisitionFrameRate').value())
+                self.controller.start_grabbing(frame_rate)
             else:
                 if not self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_start()
@@ -398,13 +400,16 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
             pass
         self.controller.close()
 
-        # Make sure we set these to false if camera disconnected
-        param = self.settings.child('trigger', 'TriggerMode')
-        param.setValue(False) # Turn off save on trigger if triggering is off
-        param.sigValueChanged.emit(param, False)
-        param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
-        param.setValue(False) # Turn off save on trigger if triggering is off
-        param.sigValueChanged.emit(param, False)         
+        # Just set these to false if camera disconnected for clean GUI
+        try:
+            param = self.settings.child('trigger', 'TriggerMode')
+            param.setValue(False) # Turn off save on trigger if triggering is off
+            param.sigValueChanged.emit(param, False)
+            param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
+            param.setValue(False) # Turn off save on trigger if triggering is off
+            param.sigValueChanged.emit(param, False) 
+        except Exception:
+            pass # no trigger settings
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False
@@ -482,7 +487,11 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
         self.settings.child('device_info','DeviceModelName').setValue(self.controller.model_name)
         self.settings.child('device_info','DeviceSerialNumber').setValue(self.controller.device_info.serial)
         self.settings.child('device_info','DeviceVersion').setValue(self.controller.device_info.version)
-        self.settings.child('device_state', 'device_state_to_load').setValue(self.controller.default_device_state_path)
+
+        try:
+            self.settings.child('device_state', 'device_state_to_load').setValue(self.controller.default_device_state_path)
+        except Exception:
+            pass # this parameter was not included in config file
 
         # Special case
         if 'DeviceUserID' in self.controller.attribute_names:

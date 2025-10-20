@@ -368,8 +368,12 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
     def grab_data(self, Naverage: int = 1, live: bool = False, **kwargs) -> None:
         try:
             self._prepare_view()
+            if "Acquisition Frame Rate" in self.controller.attributes:
+                frame_rate = self.settings.param('AcquisitionFrameRateAbs').value()
+            else:
+                frame_rate = None
             if live:
-                self.controller.start_grabbing(frame_rate=self.settings.param('AcquisitionFrameRate').value())
+                self.controller.start_grabbing(frame_rate)
             else:
                 if not self.controller.camera.is_acquisition_active:
                     self.controller.camera.acquisition_start()
@@ -530,13 +534,16 @@ class DAQ_2DViewer_ImagingSourceWithLECO(DAQ_Viewer_base):
             pass
         self.controller.close()
 
-        # Make sure we set these to false if camera disconnected
-        param = self.settings.child('trigger', 'TriggerMode')
-        param.setValue(False) # Turn off save on trigger if triggering is off
-        param.sigValueChanged.emit(param, False)
-        param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
-        param.setValue(False) # Turn off save on trigger if triggering is off
-        param.sigValueChanged.emit(param, False)     
+        # Just set these to false if camera disconnected for clean GUI
+        try:
+            param = self.settings.child('trigger', 'TriggerMode')
+            param.setValue(False) # Turn off save on trigger if triggering is off
+            param.sigValueChanged.emit(param, False)
+            param = self.settings.child('trigger', 'TriggerSaveOptions', 'TriggerSave')
+            param.setValue(False) # Turn off save on trigger if triggering is off
+            param.sigValueChanged.emit(param, False) 
+        except Exception:
+            pass # no trigger settings
 
         self.controller = None  # Garbage collect the controller
         self.status.initialized = False

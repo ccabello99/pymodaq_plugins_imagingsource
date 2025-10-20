@@ -4,18 +4,19 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 from numpy.typing import NDArray
 import imagingcontrol4 as ic4
 import numpy as np
-from qtpy import QtCore
+from qtpy import QtCore, QtWidgets
 import json
 import os
 import time
 import math
 import platform
+import threading
 
 if not hasattr(QtCore, "pyqtSignal"):
     QtCore.pyqtSignal = QtCore.Signal  # type: ignore
 
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class ImagingSourceCamera:
@@ -37,9 +38,16 @@ class ImagingSourceCamera:
         self.camera = ic4.Grabber()
         self.model_name = info.model_name
         self.device_info = info
+        self._msg_opener = None
 
-        # Default place to look for saved device settings
-        self.default_device_state_path = os.path.join(os.path.expanduser('~'), 'Downloads', f'{self.model_name}_settings.bin')
+        # Default directory for parameter config files
+        if platform.system() == 'Windows':
+            self.base_dir = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq')
+        else:
+            self.base_dir = '/etc/.pymodaq'        
+
+        # Default place to look for saved device state configuration
+        self.default_device_state_path = os.path.join(self.base_dir, f'{self.model_name}_config.pfs')
 
         # Callback setup for image grabbing
         self.listener = Listener()
@@ -52,6 +60,7 @@ class ImagingSourceCamera:
 
     def open(self) -> None:
         self.camera.device_open(self.device_info)
+        self.create_default_config_if_not_exists()
         self.get_attributes()
         self.attribute_names = [attr['name'] for attr in self.attributes] + [child['name'] for attr in self.attributes if attr.get('type') == 'group' for child in attr.get('children', [])]
 
@@ -75,19 +84,14 @@ class ImagingSourceCamera:
         name = self.model_name.replace(" ", "-")
         os_ = platform.system()
 
-        if os_ == 'Windows':
-            base_dir = os.path.join(os.environ.get('PROGRAMDATA'), '.pymodaq')
-        else:
-            base_dir = '/etc/.pymodaq'
-
-        file_path = os.path.join(base_dir, f'config_{name}_{os_}.json')
+        file_path = os.path.join(self.base_dir, f'config_{name}_{os_}.json')
 
         try:        
             with open(file_path, 'r') as file:
                 attributes = json.load(file)
                 self.attributes = self.clean_device_attributes(attributes)
         except Exception as e:
-            log.error(f"The config file was not found at {file_path}: ", e, " Make sure to add it !")
+            logger.error(f"The config file was not found at {file_path}: ", e, " Make sure to add it !")
 
     def get_roi(self) -> Tuple[float, float, float, float, int, int]:
         """Return x0, width, y0, height, xbin, ybin."""
@@ -158,29 +162,30 @@ class ImagingSourceCamera:
         save_path = self.default_device_state_path
         try:
             self.camera.device_save_state_to_file(save_path)
-            log.info(f"Device state saved to {save_path}")
+            logger.info(f"Device state saved to {save_path}")
         except ic4.IC4Exception as e:
-            log.error(f"Failed to save device state: {e}")
+            logger.error(f"Failed to save device state: {e}")
 
     def load_device_state(self, load_path):
         if os.path.isfile(load_path):
             try:
                 self.camera.device_load_state_from_file(load_path)
-                log.info(f"Device state loaded from {load_path}")
+                logger.info(f"Device state loaded from {load_path}")
             except ic4.IC4Exception as e:
-                log.error(f"Failed to load device state: {e}")
+                logger.error(f"Failed to load device state: {e}")
         else:
-            log.warning("No saved settings file found to load.")
+            logger.warning("No saved settings file found to load.")
 
     def start_grabbing(self, frame_rate: int) -> None:
         """Start continuously to grab data.
 
         Whenever a grab succeeded, the callback defined in :meth:`set_callback` is called.
         """
-        try:
-            self.camera.device_property_map.set_value(ic4.PropId.ACQUISITION_FRAME_RATE, frame_rate)
-        except ic4.IC4Exception:
-            pass
+        if frame_rate is not None:
+            try:
+                self.camera.device_property_map.set_value(ic4.PropId.ACQUISITION_FRAME_RATE, frame_rate)
+            except ic4.IC4Exception:
+                pass
         self.camera.acquisition_start()
 
 
@@ -217,7 +222,207 @@ class ImagingSourceCamera:
             clean_params.append(param)
 
         return clean_params
+    
+    def check_attribute_names(self):
+        found_exposure = None
+        found_gain = None
 
+        possible_exposures = ["ExposureTime", "Exposure_Time"]
+        for exp in possible_exposures:
+            try:
+                self.camera.device_property_map[exp]
+                found_exposure = exp
+                break
+            except Exception:
+                pass
+
+        possible_exposure_auto = ["ExposureAuto", "Exposure_Auto"]
+        for exp_auto in possible_exposure_auto:
+            try:
+                self.camera.device_property_map[exp_auto]
+                found_exposure_auto = exp_auto
+                break
+            except Exception:
+                pass
+
+        possible_gains = ["Gain"]
+        for gain in possible_gains:
+            try:
+                self.camera.device_property_map[gain]
+                found_gain = gain
+                break
+            except Exception:
+                pass
+
+        possible_gain_auto = ["GainAuto", "Gain_Auto"]
+        for gain_auto in possible_gain_auto:
+            try:
+                self.camera.device_property_map[gain_auto]
+                found_gain_auto = gain_auto
+                break
+            except Exception:
+                pass
+
+        found_exposure = found_exposure or "ExposureTime"
+        found_gain = found_gain or "Gain"
+        found_exposure_auto = found_exposure_auto or "ExposureAuto"
+        found_gain_auto = found_gain_auto or "GainAuto"
+
+        return found_exposure, found_gain, found_exposure_auto, found_gain_auto
+
+    
+    def create_default_config_if_not_exists(self):
+        model_name = self.model_name.replace(" ", "-")
+        config_dir = self.base_dir
+        os_ = platform.system()
+        os.makedirs(config_dir, exist_ok=True)
+        config_path = os.path.join(config_dir, f'config_{model_name}_{os_}.json')
+        if os.path.exists(config_path):
+            return
+        else:
+            self._msg_opener = DefaultConfigMsg()
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Question)
+            msg.setWindowTitle("Missing Config File")
+            msg.setText(f"No config file found for camera model '{model_name}'.")
+            msg.setInformativeText("Would you like to auto-create a default configuration file?")
+            msg.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            msg.setDefaultButton(QtWidgets.QMessageBox.Yes)
+            QtCore.QTimer.singleShot(0, QtWidgets.QApplication.processEvents)
+            user_choice = self.safe_exec_messagebox(msg)
+            self.handle_user_choice(user_choice, config_path, model_name)
+
+    def handle_user_choice(self, user_choice, config_path, model_name):
+
+        if user_choice == QtWidgets.QMessageBox.Yes:
+            # Try to detect valid exposure/gain names
+            found_exposure, found_gain, found_exposure_auto, found_gain_auto = self.check_attribute_names()
+
+            # Build basic config
+            config_data = {
+                "exposure": {
+                    "title": "Exposure Settings",
+                    "name": "exposure",
+                    "type": "group",
+                    "children": {
+                        "Exposure Auto": {
+                            "title": "Exposure Auto",
+                            "name": found_exposure_auto,
+                            "type": "led_push",
+                            "value": False,
+                            "default": False
+                        },
+                        "Exposure Time": {
+                            "title": "Exposure Time (ms)",
+                            "name": found_exposure,
+                            "type": "slide",
+                            "value": 100.0,
+                            "default": 100.0,
+                            "limits": [0.001, 10000.0]
+                        }
+                    }
+                },
+                "gain": {
+                    "title": "Gain Settings",
+                    "name": "gain",
+                    "type": "group",
+                    "children": {
+                        "Gain Auto": {
+                            "title": "Gain Auto",
+                            "name": found_gain_auto,
+                            "type": "led_push",
+                            "value": False,
+                            "default": False
+                        },
+                        "Gain": {
+                            "title": "Gain Value",
+                            "name": found_gain,
+                            "type": "slide",
+                            "value": 1.0,
+                            "default": 1.0,
+                            "limits": [0.0, 2.0]
+                        }
+                    }
+                }
+            }
+            if model_name == "DMK-33GR0134":
+                device_info = {
+                "device_info": {
+                    "title": "Device Info",
+                    "name": "device_info", 
+                    "type": "group",
+                    "children": {
+                        "Device Model Name": {"title": "Device Model Name", "name": "DeviceModelName", "type": "str", "value": "", "readonly": True},
+                        "Device Serial Number": {"title": "Device Serial Number", "name": "DeviceSerialNumber", "type": "str", "value": "", "readonly": True},
+                        "Device Version": {"title": "Device Version", "name": "DeviceVersion", "type": "str", "value": "", "readonly": True},
+                        "Device User ID": {"title": "Device User ID", "name": "DeviceUserID", "type": "str", "value": ""}
+                        }
+                    }
+                }
+                device_info.update(config_data)
+                config_data = device_info
+                            
+            try:
+                print(f"Creating default config for {model_name} at {config_path}")
+                with open(config_path, "w") as f:
+                    json.dump(config_data, f, indent=4)
+                msg_info = QtWidgets.QMessageBox()
+                msg_info.setIcon(QtWidgets.QMessageBox.Information)
+                msg_info.setWindowTitle("Config Created")
+                msg_info.setText(f"Default config file created for '{model_name}'.")
+                msg_info.setInformativeText(f"Path:\n{config_path}\n\nYou can edit this file to add/remove parameters.")
+                self.safe_exec_messagebox(msg_info)
+            except Exception as e:
+                msg_err = QtWidgets.QMessageBox()
+                msg_err.setIcon(QtWidgets.QMessageBox.Critical)
+                msg_err.setWindowTitle("Error Creating Config")
+                msg_err.setText(f"Failed to write default config file:\n{e}")
+                self.safe_exec_messagebox(msg_err)
+        else:
+            msg_info = QtWidgets.QMessageBox()
+            msg_info.setIcon(QtWidgets.QMessageBox.Information)
+            msg_info.setWindowTitle("Config Not Created")
+            msg_info.setText(f"You have chosen not to create a default config file for Basler '{model_name}'.")
+            msg_info.setInformativeText(f"You will not have access to camera parameters until you have a valid config file.\n\nYou can find examples of config files in the resources directory of this package or reinitialize and create a default.")
+            self.safe_exec_messagebox(msg_info)
+
+    def safe_exec_messagebox(self, msgbox) -> int:
+        result_container = {}
+        finished_event = threading.Event()
+
+        def show_dialog():
+            try:
+                result_container["choice"] = int(msgbox.exec_())
+            except Exception:
+                result_container["choice"] = int(QtWidgets.QMessageBox.No)
+            finally:
+                finished_event.set()
+
+        if self._msg_opener is None:
+            self._msg_opener = DefaultConfigMsg()
+
+        QtCore.QMetaObject.invokeMethod(
+            self._msg_opener,
+            "run_box",
+            QtCore.Qt.ConnectionType.AutoConnection,
+            QtCore.Q_ARG(object, show_dialog)
+        )
+
+        if QtCore.QThread.currentThread() != QtWidgets.QApplication.instance().thread():
+            finished_event.wait()
+            QtCore.QTimer.singleShot(0, QtWidgets.QApplication.processEvents)
+        else:
+            while not finished_event.is_set():
+                QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents, 50)
+
+        return result_container.get("choice", int(QtWidgets.QMessageBox.No))
+    
+class DefaultConfigMsg(QtCore.QObject):
+    def __init__(self):
+        super().__init__()
+    @QtCore.Slot(object)
+    def run_box(self, fn):
+        fn()
 
 
 

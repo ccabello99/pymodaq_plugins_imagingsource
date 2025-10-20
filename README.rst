@@ -60,6 +60,6 @@ Extensions
 Installation instructions
 =========================
 * Tested on PyMoDAQ version \>5.0.5
-* Tested on Windows 11/ Ubuntu 24.04
+* Tested on Windows 10/11 and Ubuntu 24.04
 * Must install appropriate drivers and SDK from https://www.theimagingsource.com/en-us/support/download/ before running
-* Config files are needed for different camera models. Examples for DMK-42BUC03 and DMK-33GR0134 are given in the resources directory. These must be placed in the .pymodaq/resources folder
+* Config files are needed for different camera models. Examples for DMK-42BUC03 and DMK-33GR0134 are given in the resources directory. The module will look for this file in the C:/ProgramData/.pymodaq folder in Windows and /etc/.pymodaq folder in Linux and if not found, a default config file can be created upon camera initialization.

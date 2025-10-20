@@ -61,7 +61,11 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
     model_name_counts = {}
     for device in devices:
-        device_user_id = device.user_id
+        device_user_id = None
+        try:
+            device_user_id = device.user_id
+        except Exception:
+            pass # not an available attribute for this camera model
         if device_user_id:
             camera_list.append(device_user_id)
         else:
@@ -432,7 +436,11 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
 
         model_name_counts = {}
         for device in devices:
-            device_user_id = device.user_id
+            device_user_id = None
+            try:
+                device_user_id = device.user_id
+            except Exception:
+                pass # not an available attribute for this camera model
             if device_user_id:
                 camera_list.append(device_user_id)
             else:

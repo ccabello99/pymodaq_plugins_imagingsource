@@ -359,8 +359,21 @@ class ImagingSourceCamera:
                         }
                     }
                 }
-                device_info.update(config_data)
-                config_data = device_info
+            else:
+                device_info = {
+                "device_info": {
+                    "title": "Device Info",
+                    "name": "device_info", 
+                    "type": "group",
+                    "children": {
+                        "Device Model Name": {"title": "Device Model Name", "name": "DeviceModelName", "type": "str", "value": "", "readonly": True},
+                        "Device Serial Number": {"title": "Device Serial Number", "name": "DeviceSerialNumber", "type": "str", "value": "", "readonly": True},
+                        "Device Version": {"title": "Device Version", "name": "DeviceVersion", "type": "str", "value": "", "readonly": True},
+                        }
+                    }
+                }
+            device_info.update(config_data)
+            config_data = device_info
                             
             try:
                 print(f"Creating default config for {model_name} at {config_path}")

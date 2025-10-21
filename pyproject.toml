@@ -17,7 +17,7 @@ dependencies = [
     'imagingcontrol4',
     'imageio',
     'uuid6',
-    'pywin32',
+    'pywin32; sys_platform == "win32"',
     'h5py'
 ]
 

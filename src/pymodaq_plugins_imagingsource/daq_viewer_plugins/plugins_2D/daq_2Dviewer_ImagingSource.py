@@ -153,10 +153,10 @@ class DAQ_2DViewer_ImagingSource(DAQ_Viewer_base):
                     child.sigValueChanged.emit(child, child.value())
 
         # Initialize pixel format before starting stream to avoid default RGB types
-        try:
-            self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
-        except Exception:
-            pass # This parameter was not included in the config file
+        # try:
+        #     self.controller.camera.device_property_map.set_value('PixelFormat', self.settings.child('misc', 'PixelFormat').value())
+        # except Exception:
+        #     pass # This parameter was not included in the config file
 
         # Initialize the stream but defer acquisition start until we start grabbing
         self.controller.setup_acquisition()

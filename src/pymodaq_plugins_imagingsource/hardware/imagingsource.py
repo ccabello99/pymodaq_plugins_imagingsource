@@ -28,19 +28,27 @@ if sys.platform.startswith("win"):
     MB_OK = 0x00
     MB_ICONINFORMATION = 0x40
     MB_ICONERROR = 0x10
+    MB_TOPMOST = 0x00040000
     IDYES = 6
     IDNO = 7
     IDOK = 1
 
     def _win_message_box(title, text, buttons="yesno", icon="info"):
-        icon_map = {"info": MB_ICONINFORMATION, "question": MB_ICONQUESTION, "error": MB_ICONERROR}
+        icon_map = {
+            "info": MB_ICONINFORMATION,
+            "question": MB_ICONQUESTION,
+            "error": MB_ICONERROR
+        }
+
         flags = icon_map.get(icon, MB_ICONINFORMATION)
+        flags |= MB_TOPMOST
+
         if buttons == "yesno":
             flags |= MB_YESNO
         else:
             flags |= MB_OK
-        return ctypes.windll.user32.MessageBoxW(0, text, title, flags)
 
+        return ctypes.windll.user32.MessageBoxW(0, text, title, flags)
 
 class ImagingSourceCamera:
     """Control a Imaging Source camera in the style of pylablib.

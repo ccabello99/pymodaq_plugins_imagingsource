@@ -472,7 +472,18 @@ class ImagingSourceCamera:
 
             except Exception:
                 return int(QtWidgets.QMessageBox.No)
+        # Linux path
         else:
+
+            # Force dialog above PyMoDAQ main window
+            msgbox.setWindowFlags(
+                msgbox.windowFlags() |
+                QtCore.Qt.WindowStaysOnTopHint
+            )
+            msgbox.setModal(True)
+            msgbox.raise_()
+            msgbox.activateWindow()
+
             QtCore.QMetaObject.invokeMethod(
                 self._msg_opener,
                 "run_box",

@@ -69,7 +69,6 @@ class ImagingSourceCamera:
         self.camera = ic4.Grabber()
         self.model_name = info.model_name
         self.device_info = info
-        self._msg_opener = None
 
         # Default directory for parameter config files
         if platform.system() == 'Windows':
@@ -311,7 +310,6 @@ class ImagingSourceCamera:
         if os.path.exists(config_path):
             return
         else:
-            self._msg_opener = DefaultConfigMsg()
             msg = QtWidgets.QMessageBox()
             msg.setIcon(QtWidgets.QMessageBox.Question)
             msg.setWindowTitle("Missing Config File")
@@ -433,18 +431,6 @@ class ImagingSourceCamera:
 
     def safe_exec_messagebox(self, msgbox: QtWidgets.QMessageBox, buttons: str = "yesno") -> int:
         result_container = {}
-        finished_event = threading.Event()
-
-        def show_dialog():
-            try:
-                result_container["choice"] = int(msgbox.exec_())
-            except Exception:
-                result_container["choice"] = int(QtWidgets.QMessageBox.No)
-            finally:
-                finished_event.set()
-
-        if self._msg_opener is None:
-            self._msg_opener = DefaultConfigMsg()
 
         # Non-GUI thread (Windows only safe path)
         if sys.platform.startswith("win"):
@@ -472,41 +458,12 @@ class ImagingSourceCamera:
 
             except Exception:
                 return int(QtWidgets.QMessageBox.No)
-        # Linux path
+        # Linux path (just create new config; no pop-up window)
         else:
-
-            # Force dialog above PyMoDAQ main window
-            msgbox.setWindowFlags(
-                msgbox.windowFlags() |
-                QtCore.Qt.WindowStaysOnTopHint
-            )
-            msgbox.setModal(True)
-            msgbox.raise_()
-            msgbox.activateWindow()
-
-            QtCore.QMetaObject.invokeMethod(
-                self._msg_opener,
-                "run_box",
-                QtCore.Qt.ConnectionType.AutoConnection,
-                QtCore.Q_ARG(object, show_dialog)
-            )
-
-            if QtCore.QThread.currentThread() != QtWidgets.QApplication.instance().thread():
-                finished_event.wait()
-                QtCore.QTimer.singleShot(0, QtWidgets.QApplication.processEvents)
-            else:
-                while not finished_event.is_set():
-                    QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents, 50)
-
-            return result_container.get("choice", int(QtWidgets.QMessageBox.No))
-
-    
-class DefaultConfigMsg(QtCore.QObject):
-    def __init__(self):
-        super().__init__()
-    @QtCore.Slot(object)
-    def run_box(self, fn):
-        fn()
+            try:
+                return result_container.get("choice", int(QtWidgets.QMessageBox.Yes))
+            except Exception:               
+                return result_container.get("choice", int(QtWidgets.QMessageBox.No))
 
 class Listener(ic4.QueueSinkListener):
 
